@@ -1,0 +1,65 @@
+<%- include('partials/header') %>
+<section class="container page-fill" id="programasModule">
+  <h2 class="dashboard-title">Seguridad - Administración de Programas</h2>
+
+  <div class="card card--stretch">
+    <!-- CABECERA DEL LISTADO -->
+    <div class="card__head">
+      <h3 class="card__title">Catálogo de Módulos (Programas)</h3>
+      <input id="q" class="input input--search" placeholder="Buscar por código o nombre..." autocomplete="off" />
+    </div>
+
+    <div class="usr-stack">
+      <!-- LISTA (SCROLL INTERNO) -->
+      <div class="table-clip">
+        <table class="table table--grid" id="programasTable">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Nombre del Programa</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="prg-tbody">
+            <tr class="row-empty"><td colspan="3">Cargando programas...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FORMULARIO + BOTONERA LATERAL -->
+      <div class="form-row">
+        <form id="programaForm" class="form-body" novalidate>
+          <div class="form-grid-2">
+            <div class="field">
+              <label for="f-procod">Código de Programa *</label>
+              <input type="text" id="f-procod" name="procod" class="input" placeholder="EJ. ACCESOS" required maxlength="20" />
+            </div>
+            
+            <div class="field">
+              <label for="f-pronom">Nombre del Programa *</label>
+              <input type="text" id="f-pronom" name="pronom" class="input" placeholder="EJ. Administración de Accesos" required maxlength="100" />
+            </div>
+          </div>
+
+          <div class="field" style="margin-top: 12px;">
+            <label for="f-prodes">Descripción del Programa *</label>
+            <input type="text" id="f-prodes" name="prodes" class="input" placeholder="EJ. Gestión y asignación de permisos" required maxlength="100" />
+          </div>
+          
+          <!-- Area de mensajes del formulario -->
+          <div class="form-message-area" style="margin-top: 12px;"></div>
+        </form>
+
+        <!-- BOTONES AL LADO (VERTICAL) -->
+        <aside class="actions-side">
+          <button class="btn btn-soft" id="btn-new">Nuevo</button>
+          <button class="btn btn--brand" id="btn-save">Guardar</button>
+          <button class="btn btn-danger" id="btn-anular">Desactivar</button>
+          <button class="btn btn-danger" id="btn-delete" style="display: none;">Eliminar</button>
+          <button class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

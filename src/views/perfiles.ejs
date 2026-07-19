@@ -1,0 +1,86 @@
+<%- include('partials/header') %>
+<section class="container page-fill" id="perfilesModule">
+  <h2 class="dashboard-title">Seguridad - Administración de Perfiles y Permisos</h2>
+
+  <div class="card card--stretch">
+    <!-- CABECERA DEL LISTADO -->
+    <div class="card__head" style="gap: var(--s3); flex-wrap: wrap;">
+      <h3 class="card__title">Matriz de Permisos por Taller</h3>
+      
+      <!-- Context Selector Dropdowns inside Header -->
+      <div style="display: flex; gap: var(--s2); flex-wrap: wrap; align-items: center; margin-left: auto;">
+        <div style="display: flex; flex-direction: column;">
+          <select id="selectUser" class="input input--search" style="min-width: 200px; padding: 8px 12px; font-size: 14px;">
+            <option value="">Seleccione usuario...</option>
+          </select>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; display: none;">
+          <select id="selectEmpresa" class="input input--search" style="min-width: 200px; padding: 8px 12px; font-size: 14px;">
+            <option value="">Seleccione empresa...</option>
+          </select>
+        </div>
+
+        <div style="display: flex; flex-direction: column;">
+          <select id="selectTaller" class="input input--search" style="min-width: 200px; padding: 8px 12px; font-size: 14px;" disabled>
+            <option value="">Seleccione taller...</option>
+          </select>
+        </div>
+        
+        <button id="btnLoadPermissions" class="btn btn-soft" style="padding: 8px 16px;">Cargar</button>
+      </div>
+    </div>
+
+    <!-- Layout container for Grid + Actions -->
+    <div class="usr-stack">
+      <!-- Matrix Table Wrapper -->
+      <div class="table-clip" style="flex: 1 1 auto; height: 380px;">
+        <table class="table table--grid" id="permissionsTable">
+          <thead>
+            <tr>
+              <th>Módulo</th>
+              <th class="text-center">Consulta</th>
+              <th class="text-center">Graba</th>
+              <th class="text-center">Anula</th>
+              <th class="text-center">Elimina</th>
+              <th class="text-center">Imprime</th>
+              <th class="text-center">Ope 1</th>
+              <th class="text-center">Ext 1</th>
+              <th class="text-center">Ope 2</th>
+              <th class="text-center">Ext 2</th>
+              <th class="text-center">Ope 3</th>
+              <th class="text-center">Ext 3</th>
+              <th class="text-center">Ope 4</th>
+              <th class="text-center">Ext 4</th>
+              <th class="text-center">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="matrix-tbody">
+            <tr class="row-empty">
+              <td colspan="15" class="text-center">Seleccione Usuario y Taller para cargar la matriz de privilegios.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Action Footer with vertical save buttons and clean design -->
+      <div class="form-row">
+        <div class="form-body" style="padding: var(--s2) 0;">
+          <p class="hint" style="margin: 0;">
+            * Nota: Los cambios en los permisos tendrán efecto la próxima vez que el usuario inicie sesión o cambie de contexto.
+          </p>
+          
+          <!-- Area de mensajes del formulario -->
+          <div class="form-message-area" style="margin-top: 12px;"></div>
+        </div>
+        <aside class="actions-side">
+          <% if (user.usuadm || (user.permisos && user.permisos['PERFILES'] && user.permisos['PERFILES'].flggra)) { %>
+            <button class="btn btn--brand" id="btnSavePermissions" style="width: 100%; display: none;">Guardar</button>
+          <% } %>
+          <button class="btn btn-ghost" id="btnCancelMatrix" style="width: 100%; display: none;">Limpiar</button>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

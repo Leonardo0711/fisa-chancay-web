@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title><%= title %></title>
+  <meta name="csrf-token" content="<%= csrfToken %>">
+  
+  <!-- Google Fonts for premium typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="<%= baseUrl %>css/base.css">
+  <link rel="stylesheet" href="<%= baseUrl %>css/layout.css">
+  <link rel="stylesheet" href="<%= baseUrl %>css/pages.css">
+  <link rel="stylesheet" href="<%= baseUrl %>css/app.css">
+  <script>
+    window.BASE_URL = "<%= baseUrl %>";
+    window.ACTIVE_CONTEXT = {
+      empcod: "<%= (locals.user && locals.user.empcod) ? locals.user.empcod : '' %>",
+      talcod: "<%= (locals.user && locals.user.talcod) ? locals.user.talcod : '' %>",
+      usuadm: <%= (locals.user && locals.user.usuadm) ? 'true' : 'false' %>
+    };
+  </script>
+</head>
+<body>
+  <div class="app-shell">
+  <% if (user) { %>
+    <header class="navbar" id="mainNavbar">
+      <div class="container inner">
+        <div class="nav-flex">
+          <div class="nav-left">
+            <div class="nav-brand">
+              <img src="<%= baseUrl %>img/logo.png" alt="FISA">
+            </div>
+            <div class="nav-context">
+              <div class="chip">
+                <span class="chip-dot"></span>
+                <span class="chip-text">FISA <span class="chip-sep">|</span> Chancay</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Hamburger toggle for mobile -->
+          <button class="nav-toggle" id="nav-toggle" type="button" aria-label="Abrir menú" aria-expanded="false">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+
+          <div class="nav-panel" id="nav-panel">
+            <nav class="nav-links">
+              <a href="<%= baseUrl %>home" class="nav-link <%= (locals.path === '/home') ? 'is-active' : '' %>">Inicio</a>
+              
+              <% if (user.usuadm) { %>
+                <div class="nav-dropdown" id="segDropdown">
+                  <button type="button" class="nav-link nav-link--dropdown <%= ['/usuarios','/programas','/perfiles'].includes(locals.path) ? 'is-active' : '' %>">
+                    Seguridad
+                    <svg class="dd-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="nav-dropdown-menu">
+                    <a href="<%= baseUrl %>usuarios" class="dd-item <%= (locals.path === '/usuarios') ? 'is-active' : '' %>">Usuarios</a>
+                    <a href="<%= baseUrl %>programas" class="dd-item <%= (locals.path === '/programas') ? 'is-active' : '' %>">Programas</a>
+                    <a href="<%= baseUrl %>perfiles" class="dd-item <%= (locals.path === '/perfiles') ? 'is-active' : '' %>">Perfiles</a>
+                  </div>
+                </div>
+              <% } %>
+              
+              <% if (user.usuadm || (user.permisos && user.permisos['PRODUCCION'] && user.permisos['PRODUCCION'].flgcon)) { %>
+                <a href="<%= baseUrl %>produccion" class="nav-link <%= (locals.path === '/produccion') ? 'is-active' : '' %>">Produccion</a>
+              <% } %>
+            </nav>
+            
+            <div class="nav-actions">
+              <% if (user.usucod.toUpperCase() !== 'ADMIN' && user.usunom.toUpperCase() !== 'ADMIN') { %>
+                <span class="user-name"><%= user.usunom %></span>
+              <% } %>
+              <button id="logoutBtn" class="btn btn--ghost btn--pill">Salir</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="main">
+  <% } else { %>
+    <main class="main main--no-nav">
+  <% } %>

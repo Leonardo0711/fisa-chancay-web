@@ -1,0 +1,93 @@
+<%- include('partials/header') %>
+<section class="container page-fill" id="usuariosModule">
+  <h2 class="dashboard-title">Seguridad - Usuarios</h2>
+
+  <div class="card card--stretch">
+    <!-- CABECERA DEL LISTADO -->
+    <div class="card__head">
+      <h3 class="card__title">Listado de Usuarios</h3>
+      <input id="q" class="input input--search" placeholder="Buscar por código, nombre o mail..." autocomplete="off" />
+    </div>
+
+    <div class="usr-stack">
+      <!-- LISTA (SCROLL INTERNO) -->
+      <div class="table-clip">
+        <table class="table table--grid" id="usuariosTable">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Nombre y Apellidos</th>
+              <th>Administrador</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="usr-tbody">
+            <tr class="row-empty"><td colspan="4">Cargando usuarios...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FORMULARIO + BOTONERA LATERAL -->
+      <div class="form-row">
+        <form id="usuarioForm" class="form-body" novalidate>
+          <!-- Fila 1: Usuario | Nombre -->
+          <div class="form-grid-2">
+            <div class="field">
+              <label for="f-usucod">Usuario *</label>
+              <input id="f-usucod" name="usucod" class="input" maxlength="20" placeholder="Ej: JRODRIGUEZ" required />
+            </div>
+            <div class="field">
+              <label for="f-usunom">Nombre Completo *</label>
+              <input id="f-usunom" name="usunom" class="input" maxlength="100" placeholder="NOMBRE Y APELLIDOS" required />
+            </div>
+          </div>
+
+          <!-- Fila 2: Mail | Contraseña (solo creación) -->
+          <div class="form-grid-2">
+            <div class="field">
+              <label for="f-usumail">Correo Electrónico</label>
+              <input id="f-usumail" name="usumail" class="input" type="email" maxlength="100" placeholder="correo@empresa.com" />
+            </div>
+            <div class="field" id="passwordGroup">
+              <label for="f-usucla">Contraseña *</label>
+              <input id="f-usucla" name="usucla" type="password" class="input" placeholder="Mínimo 4 caracteres" required />
+            </div>
+            <div class="field" id="changePasswordGroup" style="display: none;">
+              <label for="f-newpass">Cambiar Contraseña</label>
+              <div style="display: flex; gap: 8px;">
+                <input id="f-newpass" type="password" class="input" placeholder="Nueva clave (dejar vacío para mantener)" />
+                <button type="button" id="btnUpdatePass" class="btn btn-soft">Actualizar Clave</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fila 3: Admin -->
+          <div class="field--inline usr-inline" style="margin-top: 14px;">
+            <div>
+              <label for="f-usuadm" style="display: inline-block; margin-right: 12px; margin-bottom: 0; vertical-align: middle;">Administrador</label>
+              <input id="f-usuadm" name="usuadm" type="checkbox" class="switch" style="vertical-align: middle;" />
+            </div>
+          </div>
+
+          <p class="hint" style="margin-top: 12px;">
+            Al crear, debe rellenar el código y nombre obligatorios. Los administradores no requieren configurar accesos individuales.
+          </p>
+          
+          <!-- Area de mensajes del formulario -->
+          <div class="form-message-area" style="margin-top: 12px;"></div>
+        </form>
+
+        <!-- BOTONES AL LADO (VERTICAL) -->
+        <aside class="actions-side">
+          <button class="btn btn-soft" id="btn-new">Nuevo</button>
+          <button class="btn btn--brand" id="btn-save">Guardar</button>
+          <button class="btn btn-danger" id="btn-anular">Desactivar</button>
+          <button class="btn btn-danger" id="btn-delete" style="display: none;">Eliminar</button>
+          <button class="btn btn--brand" id="btn-acc" style="visibility: hidden;">Accesos...</button>
+          <button class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

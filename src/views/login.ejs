@@ -1,0 +1,99 @@
+<%- include('partials/header') %>
+<section class="login-wrap">
+  <form id="loginForm" class="card login-card animate-in" novalidate>
+    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+    
+    <div class="login-logo" style="display: flex; justify-content: center; margin-bottom: 24px;">
+      <img src="<%= baseUrl %>img/logo.png" alt="FISA Logo" style="height: 54px; width: auto; object-fit: contain;">
+    </div>
+    
+    <h2 class="login-title" style="text-align: center; margin-bottom: 6px;">Iniciar sesión</h2>
+    <p class="login-sub" style="text-align: center; margin-bottom: 24px;">Accede con tu usuario corporativo.</p>
+    
+    <div class="field">
+      <label for="usucod">Usuario</label>
+      <input type="text" id="usucod" name="usucod" class="input" placeholder="EJ. OPER01" required autocomplete="username" autofocus>
+      <div class="hint" id="hint-user"></div>
+    </div>
+    
+    <div class="field">
+      <label for="usucla">Contraseña</label>
+      <input type="password" id="usucla" name="usucla" class="input" placeholder="••••••••" required autocomplete="current-password">
+      <div class="hint" id="capsHint"></div>
+    </div>
+    
+    <% if (captchaEnabled) { %>
+      <div class="field captcha-group">
+        <label for="captcha">Verificación de seguridad</label>
+        <div class="captcha-grid-row">
+          <input type="text" id="captcha" name="captcha" class="input" placeholder="INGRESA EL CÓDIGO" required autocomplete="off">
+          <div id="captchaImage" class="captcha-img-container">
+            <%- captchaQuestion %>
+          </div>
+          <button type="button" id="refreshCaptchaBtn" class="captcha-refresh-btn" title="Generar otro código">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="refresh-icon">
+              <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    <% } %>
+    
+    <div class="row" style="grid-template-columns: 1fr auto; align-items: center; margin-top: 18px;">
+      <label style="display: flex; align-items: center; gap: 8px; color: var(--muted); cursor: pointer; user-select: none;">
+        <input type="checkbox" id="remember" name="remember"> Recordarme
+      </label>
+      <button type="submit" class="btn btn--brand" id="btn-login">Entrar</button>
+    </div>
+  </form>
+</section>
+
+<script>
+  // Add Caps Lock and general input hints to Login Page
+  document.addEventListener('DOMContentLoaded', () => {
+    const usucod = document.getElementById('usucod');
+    const pass = document.getElementById('usucla');
+    const capsHint = document.getElementById('capsHint');
+    const userHint = document.getElementById('hint-user');
+    const btn = document.getElementById('btn-login');
+    const remember = document.getElementById('remember');
+
+    // Restore remembered credentials if any
+    try {
+      const savedUser = localStorage.getItem('remembered_usucod');
+      const savedCheck = localStorage.getItem('remember_checked');
+      if (savedUser && usucod) {
+        usucod.value = savedUser;
+      }
+      if (savedCheck === 'true' && remember) {
+        remember.checked = true;
+      }
+    } catch (e) {
+      console.warn('Error reading from localStorage:', e);
+    }
+
+    if (usucod && userHint) {
+      usucod.addEventListener('input', () => {
+        const v = usucod.value.trim();
+        userHint.textContent = !v ? 'Ingresa tu usuario' : (/\s/.test(v) ? 'Sin espacios en el código' : '');
+      });
+    }
+
+    if (pass && capsHint) {
+      pass.addEventListener('keyup', (e) => {
+        const on = e.getModifierState && e.getModifierState('CapsLock');
+        capsHint.textContent = on ? 'Bloq Mayús está activo' : '';
+        capsHint.className = 'hint' + (on ? ' warn' : '');
+      });
+    }
+
+    if (btn) {
+      btn.addEventListener('pointerdown', (e) => {
+        const r = e.currentTarget.getBoundingClientRect();
+        e.currentTarget.style.setProperty('--x', `${e.clientX - r.left}px`);
+        e.currentTarget.style.setProperty('--y', `${e.clientY - r.top}px`);
+      });
+    }
+  });
+</script>
+<%- include('partials/footer') %>

@@ -1,0 +1,198 @@
+/* =========================
+   BASE • FISA UI (tema claro)
+   ========================= */
+:root{
+  /* Colores del logo */
+  --brand-900:#0E3A66;   /* Azul principal del texto FISA */
+  --brand-700:#2E618E;   /* Azul medio (hover/gradientes) */
+  --brand-400:#487397;   /* Azul claro de apoyo */
+  --accent-600:#FF422A;  /* Rojo-naranja isotipo */
+  --accent-500:#FF614E;
+
+  /* UI clara */
+  --bg:#F5F9FD;          /* fondo general */
+  --surface:#FFFFFF;     /* cards */
+  --surface-2:#FAFDFF;   /* blanco suave */
+  --text:#102033;        /* texto principal */
+  --muted:#5B6E86;       /* texto secundario */
+  --border:#D7E3EE;      /* bordes */
+
+  /* Estados */
+  --ok:#16A34A; --warn:#CA8A04; --danger:#DC2626;
+
+  /* radios / sombras / spacing */
+  --radius:14px;
+  --shadow:0 10px 30px rgba(15,44,77,.10), 0 2px 10px rgba(15,44,77,.06);
+  --s-1:6px; --s0:10px; --s1:14px; --s2:18px; --s3:24px; --s4:32px;
+
+  /* Motion */
+  --ease: cubic-bezier(.22,.61,.36,1);
+  --dur: .35s;
+
+  /* Modulos / variables adicionales mapeadas para consistencia */
+  --border-color: var(--border);
+  --bg-primary: var(--bg);
+  --bg-secondary: var(--surface);
+  --text-primary: var(--text);
+  --text-secondary: var(--muted);
+  --success: var(--ok);
+  --warning: var(--warn);
+  
+  --border-radius-sm: 999px;
+  --border-radius-md: 10px;
+  --border-radius-lg: 14px;
+  
+  --shadow-sm: 0 1px 2px rgba(15,44,77,.05);
+  --shadow-md: 0 4px 12px rgba(15,44,77,.08);
+  --shadow-lg: 0 10px 30px rgba(15,44,77,.12);
+  
+  --transition-fast: .15s var(--ease);
+}
+
+/* ---------- Reset mínimo ---------- */
+*{ box-sizing:border-box }
+html,body{ height:100% }
+body{
+  margin:0;
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(900px 500px at 85% 80%, rgba(72,115,151,.10) 0%, transparent 60%),
+    radial-gradient(900px 500px at 15% 10%, rgba(14,58,102,.08) 0%, transparent 60%),
+    var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,h2,h3{ margin:.2rem 0 var(--s1); line-height:1.25 }
+p{ margin:.3rem 0 var(--s1) }
+a{ color: var(--brand-900); text-decoration: none }
+a:hover{ text-decoration: underline }
+
+/* ---------- Utilidades ---------- */
+.container{ width:min(1100px, 92vw); margin-inline:auto }
+.row{ display:grid; gap: var(--s2) }
+.card{
+  /* fondo y borde */
+  background: linear-gradient(180deg, var(--surface), var(--surface-2));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+
+  /* recortes para que los gradientes NO se vean cuadrados en las esquinas */
+  background-clip: padding-box;      /* el fondo no se pinta bajo el borde */
+  overflow: hidden;                  /* asegura recorte del contenido interno */
+  clip-path: inset(0 round var(--radius)); /* redondeo “duro” del contenedor */
+
+  /* sombra */
+  box-shadow: var(--shadow);
+}
+.badge{
+  display:inline-block; padding:.25rem .55rem; border-radius:999px;
+  background: color-mix(in oklab, var(--brand-400) 10%, var(--surface));
+  border:1px solid color-mix(in oklab, var(--brand-400) 25%, var(--border));
+  color: var(--text); font-size:.82rem;
+}
+
+/* ---------- Botones ---------- */
+.btn{
+  border:0; border-radius:12px; padding:12px 16px; font-weight:700; cursor:pointer;
+  transition: filter .15s ease, transform .1s ease, background .15s var(--ease), color .15s var(--ease);
+  position:relative; overflow:hidden;
+}
+.btn:disabled{
+  background: #e2e8f0 !important;
+  color: #94a3b8 !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: none !important;
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+  transform: none !important;
+}
+.btn:hover:not(:disabled){ transform: translateY(-1px) }
+.btn:active:not(:disabled){ transform: translateY(0) scale(.99) }
+.btn::after{
+  content:""; position:absolute; inset:0; pointer-events:none; opacity:0;
+  background: radial-gradient(circle at var(--x,50%) var(--y,50%), rgba(255,255,255,.45), transparent 40%);
+  transition: opacity .35s var(--ease);
+}
+.btn:active::after{ opacity: .65; }
+
+.btn--brand{
+  background: linear-gradient(90deg, var(--brand-900), var(--brand-700));
+  color:#fff;
+  border:1px solid color-mix(in oklab, var(--brand-900) 70%, #000);
+}
+.btn--brand:hover{ filter: brightness(1.06) }
+
+.btn--accent{
+  background: linear-gradient(90deg, var(--accent-600), var(--accent-500));
+  color:#0b0f1a; font-weight:800;
+  border:1px solid color-mix(in oklab, var(--accent-600) 70%, #000);
+}
+
+/* Botón fantasma y en forma de píldora (usados en navbar) */
+.btn--ghost{
+  background: transparent;
+  color: var(--brand-900);
+  border:1px solid var(--border);
+}
+.btn--ghost:hover{ background: color-mix(in oklab, var(--brand-400) 8%, #fff) }
+.btn--pill{ border-radius:999px; padding:10px 14px }
+
+/* Enlaces “ghost” */
+.link-ghost{
+  color: var(--brand-900);
+  border-radius: 10px; padding: 6px 8px;
+  transition: background .15s var(--ease);
+}
+.link-ghost:hover{ background: color-mix(in oklab, var(--brand-400) 8%, #fff) }
+.small{ font-size: .9rem }
+
+/* ---------- Formularios ---------- */
+label{ display:block; margin-bottom: var(--s-1); color: color-mix(in oklab, var(--text) 88%, #000) }
+.input{
+  width:100%; height:44px; padding:0 14px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:#fff; color:var(--text);
+  outline:0;
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.input:focus{
+  border-color: color-mix(in oklab, var(--brand-700) 70%, #fff);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--brand-700) 18%, transparent);
+}
+.hint{ min-height:18px; font-size:.9rem; color: var(--muted) }
+.hint.warn{ color: var(--warn) }
+.hint.err{ color: var(--danger) }
+
+/* ===== Motion (respeta reduced motion) ===== */
+@media (prefers-reduced-motion: reduce){
+  *{ animation: none !important; transition: none !important }
+}
+
+/* Entrada suave de tarjetas */
+.animate-in{ animation: cardIn var(--dur) var(--ease) both }
+@keyframes cardIn{
+  from{ transform: translateY(10px); opacity:0 }
+  to  { transform: translateY(0);   opacity:1 }
+}
+
+/* Seguridad layout */
+html, body { overflow-x: hidden; }
+
+/* Ajustes táctiles para móvil (navbar/buttons) */
+@media (max-width: 920px){
+  .btn.btn--pill{ padding:8px 12px; } /* encaja mejor en panel móvil */
+}
+
+/* Toast animations */
+@keyframes toastIn {
+  from { transform: translate3d(-50%, 20px, 0); opacity: 0; }
+  to { transform: translate3d(-50%, 0, 0); opacity: 1; }
+}
+@keyframes toastOut {
+  from { transform: translate3d(-50%, 0, 0); opacity: 1; }
+  to { transform: translate3d(-50%, 15px, 0); opacity: 0; }
+}
+

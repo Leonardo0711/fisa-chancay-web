@@ -1,0 +1,73 @@
+<%- include('partials/header') %>
+<div class="container" style="padding-top: var(--s3); padding-bottom: var(--s4);">
+
+  <!-- Hero -->
+  <div class="card animate-in" style="padding: var(--s4); margin-bottom: var(--s3); background: linear-gradient(135deg, var(--brand-900) 0%, var(--brand-700) 100%); color: #fff; border: none;">
+    <h1 style="margin: 0 0 var(--s-1); font-size: clamp(1.4rem, 2.5vw, 2rem); font-weight: 800; color: #fff;">
+      Bienvenido, <%= user.usunom %>
+    </h1>
+    <p style="margin: 0; opacity: .85; font-size: .95rem;">Plataforma Industrial FISA S.A. — Panel de Administración</p>
+  </div>
+
+  <!-- Grid principal -->
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--s2); margin-bottom: var(--s3);">
+
+    <!-- Contexto activo -->
+    <div class="card animate-in" style="padding: var(--s3);">
+      <h3 style="margin: 0 0 var(--s2); font-size: 1.05rem; font-weight: 800; color: var(--brand-900);">Contexto Activo</h3>
+      <div style="display: grid; gap: var(--s1);">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--s-1) 0; border-bottom: 1px dashed var(--border);">
+          <span style="color: var(--muted); font-weight: 600; font-size: .875rem;">Empresa</span>
+          <span style="font-weight: 800; color: var(--brand-900);" id="currentEmpCod"><%= user.empcod || '—' %></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--s-1) 0; border-bottom: 1px dashed var(--border);">
+          <span style="color: var(--muted); font-weight: 600; font-size: .875rem;">Taller</span>
+          <span style="font-weight: 800; color: var(--brand-900);" id="currentTalCod"><%= user.talcod || '—' %></span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--s-1) 0;">
+          <span style="color: var(--muted); font-weight: 600; font-size: .875rem;">Rol</span>
+          <span style="font-weight: 800; color: <%= user.usuadm ? 'var(--warn)' : 'var(--brand-700)' %>;">
+            <%= user.usuadm ? 'Admin del Sistema' : 'Usuario Planta' %>
+          </span>
+        </div>
+      </div>
+      <div style="margin-top: var(--s2);">
+        <button id="checkDbStatusBtn" class="btn btn--ghost" style="width: 100%; font-size: .85rem;">Verificar Conexión BD</button>
+      </div>
+    </div>
+
+    <!-- Accesos Rápidos: Módulos -->
+    <div class="card animate-in" style="padding: var(--s3);">
+      <h3 style="margin: 0 0 var(--s2); font-size: 1.05rem; font-weight: 800; color: var(--brand-900);">Módulos</h3>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--s1);">
+
+        <% if (user.usuadm || (user.permisos && user.permisos['USUARIOS'] && user.permisos['USUARIOS'].flgcon)) { %>
+          <a href="<%= baseUrl %>usuarios" class="quick-module-card">
+            <span class="qm-label">Usuarios</span>
+          </a>
+        <% } %>
+
+        <% if (user.usuadm || (user.permisos && user.permisos['PROGRAMAS'] && user.permisos['PROGRAMAS'].flgcon)) { %>
+          <a href="<%= baseUrl %>programas" class="quick-module-card">
+            <span class="qm-label">Programas</span>
+          </a>
+        <% } %>
+
+        <% if (user.usuadm || (user.permisos && user.permisos['PERFILES'] && user.permisos['PERFILES'].flgcon)) { %>
+          <a href="<%= baseUrl %>perfiles" class="quick-module-card">
+            <span class="qm-label">Perfiles</span>
+          </a>
+        <% } %>
+
+        <% if (user.usuadm || (user.permisos && user.permisos['PRODUCCION'] && user.permisos['PRODUCCION'].flgcon)) { %>
+          <a href="<%= baseUrl %>produccion" class="quick-module-card">
+            <span class="qm-label">Producción</span>
+          </a>
+        <% } %>
+
+      </div>
+    </div>
+
+  </div>
+</div>
+<%- include('partials/footer') %>

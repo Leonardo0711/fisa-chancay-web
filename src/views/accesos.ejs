@@ -1,0 +1,91 @@
+<%- include('partials/header') %>
+<section class="container page-fill" id="accesosModule">
+  <h2 class="dashboard-title">Seguridad - Asignación de Accesos</h2>
+
+  <div class="card card--stretch">
+    <!-- CABECERA DEL LISTADO -->
+    <div class="card__head">
+      <h3 class="card__title">Listado de Accesos</h3>
+      <input id="q" class="input input--search" placeholder="Buscar por usuario, nombre, empresa o taller..." autocomplete="off" />
+    </div>
+
+    <div class="usr-stack">
+      <!-- LISTA (SCROLL INTERNO) -->
+      <div class="table-clip">
+        <table class="table table--grid" id="accesosTable">
+          <thead>
+            <tr>
+              <th>Usuario</th>
+              <th>Nombre</th>
+              <th>Empresa</th>
+              <th>Taller</th>
+              <th>Tipo</th>
+              <th>Por defecto</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="acc-tbody">
+            <tr class="row-empty"><td colspan="7">Cargando asignaciones...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FORMULARIO + BOTONERA LATERAL -->
+      <div class="form-row">
+        <form id="accesoForm" class="form-body" novalidate>
+          <!-- Fila 1: Usuario Selector -->
+          <div class="form-grid-2">
+            <div class="field">
+              <label for="f-usucod">Usuario *</label>
+              <select id="f-usucod" name="usucod" class="input" required>
+                <option value="">Seleccione un usuario...</option>
+              </select>
+            </div>
+            
+            <div class="field" style="display: none;">
+              <label for="f-empcod">Planta *</label>
+              <select id="f-empcod" name="empcod" class="input" required>
+                <option value="">Seleccione empresa...</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Fila 2: Taller Selector | Tipo de Acceso -->
+          <div class="form-grid-2">
+            <div class="field">
+              <label for="f-talcod">Taller *</label>
+              <select id="f-talcod" name="talcod" class="input" required disabled>
+                <option value="">Seleccione taller...</option>
+              </select>
+            </div>
+            
+            <div class="field">
+              <label for="f-usutip">Tipo de Acceso *</label>
+              <select id="f-usutip" name="usutip" class="input" required>
+                <option value="I">Ingresar / Operar</option>
+                <option value="C">Consultar / Lectura</option>
+              </select>
+            </div>
+          </div>
+
+          <p class="hint" style="margin-top: 12px;">
+            Al iniciar sesión, el usuario entrará automáticamente a su empresa/taller predeterminado.
+          </p>
+          
+          <!-- Area de mensajes del formulario -->
+          <div class="form-message-area" style="margin-top: 12px;"></div>
+        </form>
+
+        <!-- BOTONES AL LADO (VERTICAL) -->
+        <aside class="actions-side">
+          <button class="btn btn-soft" id="btn-new">Nuevo</button>
+          <button class="btn btn--brand" id="btn-save">Guardar</button>
+          <button class="btn btn-danger" id="btn-anular">Desactivar</button>
+          <button class="btn btn--accent" id="btn-default" style="visibility: hidden;">Predeterminado</button>
+          <button class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+<%- include('partials/footer') %>

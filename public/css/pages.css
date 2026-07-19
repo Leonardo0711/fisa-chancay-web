@@ -1,0 +1,187 @@
+/* =========================
+   PAGES • Estilos por vista
+   ========================= */
+
+/* -------- LOGIN (centrado real, sin overflow) -------- */
+.login-wrap{
+  position:relative;
+  width:100%;
+  min-height:100%;               /* al menos el alto del .main, pero permite crecer */
+  display:grid; place-items:center;
+  overflow:hidden;               /* el pseudo-fondo no puede desbordar */
+  padding: var(--s3) 0;          /* evita que la tarjeta toque los bordes */
+}
+
+/* Fondo sutil animado */
+.login-wrap::after{
+  content:"";
+  position:absolute; inset:-12% -6%;
+  z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(600px 300px at 85% 90%, rgba(14,58,102,.10) 0%, transparent 60%),
+    radial-gradient(700px 320px at 20% 10%, rgba(72,115,151,.10) 0%, transparent 60%);
+  animation: drift 14s ease-in-out infinite alternate;
+  filter:saturate(110%);
+}
+@keyframes drift{
+  from{ transform: translate3d(0,0,0) }
+  to  { transform: translate3d(0,-8px,0) }
+}
+
+/* Tarjeta */
+.login-card{
+  /* refuerzo por si en algún navegador ignoran el clip-path del padre */
+  background-clip: padding-box;
+
+  width:min(560px, 94vw);
+  padding: var(--s4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background:
+    radial-gradient(900px 500px at 100% 100%, rgba(14,58,102,.06) 0%, transparent 60%),
+    linear-gradient(180deg, var(--surface), var(--surface-2));
+  transition: box-shadow .25s var(--ease), transform .25s var(--ease);
+}
+.login-card:hover{
+  box-shadow: 0 14px 40px rgba(15,44,77,.12), 0 4px 12px rgba(15,44,77,.08);
+}
+
+/* Animación de entrada */
+:root{ --ease: cubic-bezier(.22,.61,.36,1); --dur:.35s; }
+.animate-in{ animation: cardIn var(--dur) var(--ease) both; }
+@keyframes cardIn{ from{ transform:translateY(10px); opacity:0 } to{ transform:none; opacity:1 } }
+
+/* Títulos y texto */
+.login-title{
+  margin:0 0 var(--s1);
+  font-size:1.8rem; letter-spacing:.2px;
+  color:var(--brand-900);
+  text-shadow:0 1px 0 rgba(255,255,255,.6);
+}
+.login-sub{ color:var(--muted); margin:0 0 var(--s3) }
+
+.field{ margin-bottom: var(--s2) }
+.action{
+  margin-top: var(--s1);
+  display:flex; justify-content:space-between; align-items:center;
+  color: var(--muted);
+}
+
+/* Responsive */
+@media (max-width: 720px){
+  .login-card{ width:96vw; padding: var(--s3) }
+  .login-title{ font-size:1.6rem }
+}
+@media (max-width: 480px){
+  .login-card{ width:94vw; padding: var(--s2) }
+  .login-title{ font-size:1.4rem }
+  .action{ flex-direction:column; gap: var(--s1); align-items:flex-start }
+}
+
+/* -------- Dashboard -------- */
+.dashboard-title{ margin: var(--s3) 0; color: var(--brand-900) }
+
+/* Alphanumeric Captcha styling matching the Web_Chancay layout */
+.captcha-group {
+  margin-bottom: var(--s2) !important;
+}
+
+.captcha-grid-row {
+  display: grid;
+  grid-template-columns: 1fr 160px 44px;
+  gap: var(--s0);
+  align-items: center;
+}
+
+.captcha-img-container {
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 2px rgba(15, 44, 77, 0.02);
+}
+
+.captcha-img-container svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.captcha-refresh-btn {
+  height: 44px;
+  width: 44px;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px !important;
+  border: 1px solid var(--border) !important;
+  background: transparent !important;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .1s ease !important;
+}
+
+.captcha-refresh-btn:hover {
+  background: color-mix(in oklab, var(--brand-400) 8%, #fff) !important;
+  border-color: var(--brand-700) !important;
+}
+
+.captcha-refresh-btn:active {
+  transform: scale(0.95) !important;
+}
+
+.refresh-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--brand-700);
+  transition: transform 0.25s ease;
+}
+
+.captcha-refresh-btn:hover .refresh-icon {
+  transform: rotate(60deg);
+}
+
+/* Responsive grid for tablets */
+@media (max-width: 640px) {
+  .captcha-grid-row {
+    grid-template-columns: 1fr 44px;
+    row-gap: var(--s1);
+  }
+  .captcha-grid-row input {
+    grid-column: 1 / -1;
+    order: 2;
+  }
+  .captcha-img-container {
+    order: 1;
+    width: 100%;
+  }
+  .captcha-refresh-btn {
+    order: 1;
+  }
+}
+@media (max-width: 480px) {
+  .captcha-grid-row {
+    grid-template-columns: 1fr 44px;
+    row-gap: var(--s1);
+  }
+  .captcha-grid-row input {
+    grid-column: 1 / -1;
+    order: 2;
+  }
+  .captcha-img-container {
+    order: 1;
+    width: 100%;
+  }
+  .captcha-refresh-btn {
+    order: 1;
+  }
+  .login-card {
+    padding: var(--s2);
+  }
+}
+

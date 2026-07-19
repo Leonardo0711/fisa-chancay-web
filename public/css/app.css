@@ -1,0 +1,493 @@
+/* =========================================================
+   FISA · App CSS
+   ========================================================= */
+
+/* ---------- Design tokens ---------- */
+:root{
+  /* spacing scale */
+  --s1: 4px;  --s2: 8px;  --s3: 16px; --s4: 24px; --s5: 32px;
+
+  /* brand (azules) */
+  --brand-50:  #eff6ff;
+  --brand-100: #dbeafe;
+  --brand-200: #bfdbfe;
+  --brand-300: #93c5fd;
+  --brand-400: #60a5fa;
+  --brand-500: #3b82f6;
+  --brand-600: #2563eb;
+  --brand-700: #1d4ed8;
+  --brand-800: #1e40af;
+  --brand-900: #1e3a8a;
+
+  /* neutrales / superficies */
+  --surface:    #ffffff;
+  --surface-50: #f9fafb;
+  --surface-100:#f3f4f6;
+  --border-200: #e5e7eb;
+
+  /* texto */
+  --text-900: #0f172a;
+  --text-700: #334155;
+  --muted:    #6b7280;
+
+  /* sombras suaves */
+  --shadow-1: 0 1px 2px rgba(16,24,40,.06);
+  --shadow-2: 0 8px 24px rgba(16,24,40,.06);
+}
+
+/* ---------- Reset / base ---------- */
+*{ box-sizing: border-box; }
+html, body{ height:100%; }
+body{
+  margin:0; font-family: 'Outfit', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-900);
+  background: radial-gradient(1200px 700px at 50% -200px, #f2f6ff 0, #f8fafc 45%, #fbfcfd 100%);
+  display:flex; flex-direction:column; min-height:100%;
+}
+main, #view{ flex:1 1 auto; }
+
+/* ---------- Layout helpers ---------- */
+.container{ width:min(1200px, 92vw); margin:0 auto; }
+.row{ display:grid; gap: var(--s3); }
+.dashboard-title{
+  font-size: clamp(22px, 1.5vw + 18px, 28px);
+  font-weight:800; color: var(--brand-900);
+  margin: var(--s4) 0 var(--s3);
+}
+
+/* ---------- Cards ---------- */
+.card{
+  background: var(--surface);
+  border:1px solid var(--border-200);
+  border-radius: 16px;
+  box-shadow: var(--shadow-1);
+}
+.card .inner{ padding: var(--s3); }
+
+/* ---------- Inputs / fields ---------- */
+label{ display:block; font-weight:700; margin-bottom:6px; color:var(--text-700); }
+.input{
+  width:100%; border:1px solid var(--border-200); background:#fff;
+  border-radius:12px; padding:12px 14px; font-size:16px;
+  outline:none; transition:border-color .15s ease, box-shadow .15s ease;
+}
+.input:focus{ border-color: var(--brand-400); box-shadow: 0 0 0 3px var(--brand-50); }
+/* Input que se muestra en mayúsculas */
+.input--upper { text-transform: uppercase; letter-spacing: .2px; }
+.field{ margin-bottom:14px; }
+.hint{ color:var(--muted); font-size:.92rem; }
+
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  border:1px solid transparent; border-radius:12px;
+  padding:10px 18px; font-weight:800; line-height:1.2; white-space:nowrap;
+  cursor:pointer; user-select:none; transition:filter .15s ease, transform .02s ease;
+}
+.btn:active{ transform: translateY(1px); }
+
+.btn--brand { background: var(--brand-600); color:#fff; }
+.btn--brand:hover { filter: brightness(1.05); }
+
+.btn--ghost { background:#fff; color:var(--text-700); border-color: var(--border-200); }
+.btn--ghost:hover { filter: brightness(0.98); }
+
+.btn-soft { background: var(--surface-100); color: var(--text-700); border:1px solid var(--border-200); }
+.btn-soft:hover { filter: brightness(0.98); }
+
+.btn-danger { background:#f7e7e7; color:#a33; border:1px solid #f0d0d0; }
+.btn-danger:hover { filter: brightness(0.98); }
+
+/* ---------- Table (base) ---------- */
+.table-wrap{ position:relative; overflow:auto; }
+.table{ width:100%; border-collapse:collapse; }
+.table th, .table td{ padding:10px 12px; border-bottom:1px solid var(--border-200); white-space:nowrap; }
+.table thead th{ position:sticky; top:0; background:var(--surface); z-index:1; }
+.table tr[aria-selected="true"] td{ background: var(--brand-50); }
+.table .row-empty td{ text-align:center; color:var(--muted); padding:18px; }
+
+/* ---------- Chips (Navbar contexto y otros) ---------- */
+.chip{
+  display:inline-flex; align-items:center; gap:8px;
+  border:1px solid var(--border-200); background:#fff;
+  padding:6px 10px; border-radius:999px; font-weight:700;
+}
+.chip--ctx .chip-dot{ width:8px; height:8px; border-radius:50%; background:#ff3b30; display:inline-block; }
+.chip--ctx .chip-text{ white-space:nowrap; }
+.chip-sep{ opacity:.5; padding:0 6px; }
+
+/* =========================================================
+   Usuarios (Seguridad)
+   ========================================================= */
+
+/* Fila Admin / Tipo / Editar accesos: layout estable */
+.usr-inline{
+  display: grid;
+  grid-template-columns: 180px 1fr 160px; /* admin / chips tipo / botón */
+  align-items: end;
+  gap: 16px;
+}
+
+/* --- Chips “Tipo” en dos columnas iguales --- */
+.usr-inline .chip-group{
+  display: grid;                       /* antes era flex */
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+/* --- Barra de acciones dividida: izq / der --- */
+.form-actions.actions-split{
+  display: grid;
+  grid-template-columns: 1fr auto;     /* izquierda empuja a la derecha */
+  align-items: center;
+}
+
+.actions-left,
+.actions-right{
+  display: flex;
+  gap: 10px;
+}
+
+/* Anchos consistentes en la barra de acciones */
+.form-actions .btn{ min-width: 120px; }
+
+/* Opcional: un pelín más de espacio arriba de la barra si lo ves muy pegado */
+.form-actions.actions-split{ padding-top: 16px; }
+
+/* Reserva el espacio del botón aunque esté oculto */
+#btn-edit-acc[aria-hidden="true"] { visibility: hidden; }  /* NO display:none */
+#btn-edit-acc { min-width: 160px; }                        /* ancho fijo */
+
+/* hace que la sección empuje el footer al fondo */
+.page-fill{ min-height: unset; }
+
+/* grid general para listado + formulario (legacy; no estorba) */
+.grid-2col-usr{
+  display:grid;
+  grid-template-columns: minmax(520px, 2fr) minmax(380px, 1fr);
+  gap: 18px; align-items:flex-start;
+}
+
+/* cards específicas */
+.card--stretch{ height:100%; }
+.card__head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:12px; padding: var(--s3);
+  border-bottom:1px solid var(--border-200);
+  flex-wrap: wrap;
+}
+.card__title{ margin:0; font-size:1.05rem; font-weight:800; color:var(--brand-900); white-space: nowrap; }
+.card__body{ padding: var(--s3); }
+
+.input--search{ width:380px; max-width:100%; min-width: 0; }
+
+/* tabla responsiva ocupando todo el ancho del card (base) */
+.table-wrap{ overflow:auto; }
+.table{ width:100%; border-collapse:collapse; }
+.table th, .table td{ padding:10px 12px; white-space:nowrap; }
+.table thead th{ position:sticky; top:0; background:#fff; z-index:1; }
+.table tr.is-selected td,
+.table tr[aria-selected="true"] td{ background: var(--brand-50); }
+.table .row-empty td{ text-align:center; color:var(--muted); padding:18px; }
+
+/* ===== Tabla mejorada (grid) ===== */
+.table--grid{
+  table-layout: auto;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+.table--grid thead th{
+  position: sticky; top: 0; z-index: 2;
+  background: var(--surface-50);
+  color: var(--brand-900);
+  border-bottom: 1px solid var(--border-200);
+}
+.table--grid th, .table--grid td{
+  padding: 8px 6px;
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  border-bottom: 1px solid var(--border-200);
+  font-size: 13px;
+  max-width: 220px;
+}
+.table--grid td + td{ /* separadores verticales suaves */
+  border-left: 1px dashed #e9edf5;
+}
+
+/* Anchos / alineación por columna */
+.table--grid th:nth-child(1), .table--grid td:nth-child(1){ width: 160px; text-align: left; }
+.table--grid th:nth-child(n+2), .table--grid td:nth-child(n+2){ text-align: center; }
+
+/* zebra + hover + selección */
+.table--grid tbody tr:nth-child(odd) td{ background: #fbfdff; }
+.table--grid tbody tr:hover td{ background: var(--brand-50); }
+.table--grid tr[aria-selected="true"] td{
+  background: var(--brand-50);
+  box-shadow: inset 3px 0 0 var(--brand-400);
+}
+
+/* Custom Centered Table Checkbox */
+.chk-container {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  cursor: pointer;
+  width: 18px;
+  height: 18px;
+  margin: 0 auto;
+  vertical-align: middle;
+}
+
+.chk-container input {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.chk-custom {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 18px;
+  width: 18px;
+  background-color: #ffffff;
+  border: 2px solid var(--border-color);
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+}
+
+.chk-container:hover input ~ .chk-custom {
+  border-color: var(--brand-700);
+}
+
+.chk-container input:checked ~ .chk-custom {
+  background-color: var(--brand-700);
+  border-color: var(--brand-700);
+}
+
+.chk-custom:after {
+  content: "";
+  position: absolute;
+  display: none;
+  left: 5px;
+  top: 1px;
+  width: 4px;
+  height: 8px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.chk-container input:checked ~ .chk-custom:after {
+  display: block;
+}
+
+/* “code” para la primera columna (usuario) */
+.td-code code{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 700; color: var(--text-900);
+}
+
+/* Badges */
+.badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding: 4px 10px; line-height: 1;
+  border-radius: 999px; font-weight: 700;
+  border: 1px solid var(--border-200); background:#fff;
+}
+.badge--yes{ background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
+.badge--no { background:#fef2f2; color:#991b1b; border-color:#fecaca; }
+.badge--ok { background:#eef2ff; color:#3730a3; border-color:#c7d2fe; }
+.badge--off{ background:#fff7ed; color:#9a3412; border-color:#fed7aa; }
+.badge--muted{ background:#f3f4f6; color:#6b7280; }
+.td-center{ text-align:center; }
+
+/* formulario */
+.field--inline{ display:flex; align-items:center; justify-content:space-between; gap:16px; }
+
+/* chips "tipo" (segmented) */
+.chip-group{ display:flex; gap:10px; flex-wrap:wrap; }
+.chip-btn{
+  border:1px solid var(--border-200);
+  background:#fff;
+  color: var(--text-900);
+  border-radius:10px;
+  padding:10px 14px;
+  font-weight:700;
+  cursor:pointer;
+}
+.chip-btn.is-active{
+  border-color: var(--brand-400);
+  box-shadow: 0 0 0 3px var(--brand-50) inset;
+  color: var(--brand-800);
+}
+.chip-group.is-disabled { opacity:.5; pointer-events:none; }
+
+.switch {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: #e6e6e6 !important;
+  width: 42px;
+  height: 26px;
+  border-radius: 26px;
+  position: relative;
+  cursor: pointer;
+  display: inline-block;
+  vertical-align: middle;
+  transition: background-color 0.2s ease;
+}
+.switch:after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff !important;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.switch:checked {
+  background-color: var(--brand-700) !important;
+}
+.switch:checked:after {
+  transform: translateX(16px) !important;
+}
+
+/* toolbar de acciones (sticky interno) */
+.form-actions,
+.toolbar{
+  position:sticky; bottom:0; z-index:1;
+  display:flex; gap:10px; flex-wrap:wrap;
+  justify-content:flex-end;
+  padding: 12px var(--s3) var(--s3);
+  border-top:1px solid var(--border-200);
+  background: var(--surface);
+}
+
+/* cuerpo del formulario con espacio para el footer de acciones */
+.form-body{
+  padding: var(--s3);
+  /* ~80px del alto del footer + safe area para móviles */
+  padding-bottom: calc(80px + var(--safe-bottom));
+}
+
+/* footer de acciones sticky con separación real del borde inferior */
+.form-actions{
+  position: sticky;
+  bottom: calc(12px + var(--safe-bottom)); /* margen inferior visible */
+  z-index: 1;
+  display: flex; gap: 10px; flex-wrap: wrap;
+  justify-content: flex-end;
+  padding: 12px var(--s3);
+  border-top: 1px solid var(--border-200);
+  background: var(--surface);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+}
+
+/* ---------- Responsivo ---------- */
+@media (max-width: 1120px){
+  .grid-2col-usr{ grid-template-columns: 1fr; }
+  .input--search{ width:100%; }
+}
+@media (max-width: 860px){
+  .card__head{ flex-direction: column; align-items: stretch; }
+  .card__title{ text-align: center; }
+  .input--search{ width: 100%; }
+}
+@media (max-width: 640px){
+  .table--grid th, .table--grid td{
+    padding: 6px 4px;
+    font-size: 12px;
+    max-width: 140px;
+  }
+  .table--grid th:nth-child(1), .table--grid td:nth-child(1){ width: auto; }
+  .container{ width: 97vw; }
+  .dashboard-title{ font-size: 1.15rem; margin: var(--s3) 0 var(--s2); }
+}
+
+/* ---------- Suavizadores globales opcionales ---------- */
+.btn--accent{ background:#eef2ff; color:#3730a3; border:1px solid #e0e7ff; } /* si lo usas en otra parte */
+
+/* ===== Usuarios · listado arriba, form abajo y botones al lado ===== */
+
+/* Contenedor general dentro del card */
+.usr-stack{
+  display:grid;
+  grid-template-rows: auto auto; /* 1) tabla  2) formulario+botonera */
+  gap: 12px;
+}
+
+/* Clip de tabla: ~5 filas visibles + header sticky, con scroll interno */
+.table-clip{
+  max-height: var(--tbl-clip-h, none);   /* si no hay 5 filas, no limita */
+  overflow-y: auto;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border-200);
+}
+
+/* Fila inferior: formulario + barra lateral de botones */
+.form-row{
+  display:grid;
+  grid-template-columns: 1fr 160px; /* contenido   |   botones */
+  align-items:start;
+  gap:16px;
+  padding: var(--s3);
+  min-width: 0; /* prevent overflow */
+}
+
+/* Barra vertical de botones (tipo “Operaciones”) */
+.actions-side{
+  display:grid;
+  gap:10px;
+  align-content:start;
+  position: sticky;
+  top: 12px;   /* para que no se pierda al scrollear dentro del card */
+}
+.actions-side .btn{ width:100%; }
+
+/* Opcional: más aire entre grupos del form */
+.form-row .form-body .field{ margin-bottom: 16px; }
+
+/* Ya no usamos footer pegado; si existiera, lo podemos ocultar aquí en esta vista */
+.card .form-actions{ display:none; }
+
+/* ===== Usuarios · formulario en dos columnas (compacto) ===== */
+.form-grid-2{
+  display: grid;
+  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  gap: 16px;
+  min-width: 0;
+}
+.form-grid-2 .field{ margin-bottom: 0; min-width: 0; }
+
+/* Responsivo para la fila del form y la botonera lateral */
+@media (max-width: 1120px){
+  .form-row{ grid-template-columns: 1fr; }
+  .actions-side{ position: static; }
+}
+@media (max-width: 860px){
+  .form-grid-2{ grid-template-columns: 1fr; }
+}
+@media (max-width: 640px){
+  .form-row{ padding: var(--s2); gap: 12px; }
+  .actions-side{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .actions-side .btn{ width: auto; flex: 1 1 auto; min-width: 80px; padding: 10px 12px; font-size: 0.85rem; }
+  .usr-inline{ grid-template-columns: 1fr; gap: 10px; }
+  .card__head{ padding: var(--s2); }
+  .form-body{ padding: var(--s2); padding-bottom: calc(60px + var(--safe-bottom)); }
+}

@@ -1,0 +1,40 @@
+  <% if (user) { %>
+    </main>
+  <% } else { %>
+    </main>
+  <% } %>
+  
+  <footer class="footer">
+    <div class="footer-inner">
+      <span class="footer-copy">&copy; Fibras Industriales S.A.</span>
+      <% if (user) { %>
+        <span class="footer-user">
+          <span class="footer-user-dot"></span>
+          <span class="footer-user-name"><%= user.usunom %></span>
+          <% if (user.usuadm) { %><span class="footer-user-badge">ADMIN</span><% } %>
+        </span>
+      <% } %>
+    </div>
+  </footer>
+  
+  </div> <!-- Closes .app-shell -->
+  
+  <!-- Core Layout Scripts -->
+  <script src="<%= baseUrl %>js/status-bar.js"></script>
+  <script src="<%= baseUrl %>js/form-validation.js"></script>
+  <script src="<%= baseUrl %>js/app.js"></script>
+  
+  <!-- Module Specific Scripts -->
+  <% if (typeof path !== 'undefined') { %>
+    <% if (path === '/usuarios') { %>
+      <script src="<%= baseUrl %>js/modules/usuarios.js"></script>
+    <% } else if (path === '/accesos') { %>
+      <script src="<%= baseUrl %>js/modules/accesos.js"></script>
+    <% } else if (path === '/programas') { %>
+      <script src="<%= baseUrl %>js/modules/programas.js"></script>
+    <% } else if (path === '/perfiles') { %>
+      <script src="<%= baseUrl %>js/modules/perfiles.js"></script>
+    <% } %>
+  <% } %>
+</body>
+</html>

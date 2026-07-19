@@ -1,0 +1,20 @@
+<%- include('partials/header') %>
+<div class="placeholder-container">
+  <div class="placeholder-card">
+    <h1>Registro de Ingreso Productivo</h1>
+    <p class="placeholder-desc">Fase 1: Estructura Base y Configuración General Completada.</p>
+    <div class="placeholder-info-box">
+      <p>Aquí se desplegará el módulo de control de pesaje e hilos de planta.</p>
+      <div class="placeholder-details">
+        <p><strong>Configuración de Origen:</strong></p>
+        <ul>
+          <li>Empresa: <%= user.empcod || 'No seleccionada' %></li>
+          <li>Taller: <%= user.talcod || 'No seleccionado' %></li>
+          <li>Operario: <%= user.usunom %> (<%= user.usucod %>)</li>
+        </ul>
+      </div>
+    </div>
+    <div class="placeholder-badge">LISTO PARA FASE 2</div>
+  </div>
+</div>
+<%- include('partials/footer') %>
