@@ -1,0 +1,178 @@
+<%- include('../partials/header') %>
+<link rel="stylesheet" href="<%= baseUrl %>css/modules.css">
+<section class="container page-fill" id="ubicacionesProductoModule">
+  <h2 class="dashboard-title">Mantenimiento - Ubicaciones por Producto</h2>
+
+  <div class="card card--stretch">
+    <!-- CABECERA DEL LISTADO -->
+    <div class="card__head">
+      <h3 class="card__title">Relación Ubicaciones por Producto</h3>
+    </div>
+
+    <div class="usr-stack" style="padding: var(--s3);">
+      <!-- LISTA (SCROLL INTERNO) -->
+      <div class="table-clip" style="border: 1px solid var(--border-200); border-radius: 12px; max-height: 250px;">
+        <table class="table table--grid" id="mapeosTable">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th style="width: 150px;">Ubicación</th>
+              <th style="width: 100px; text-align: center;">Cantidad</th>
+              <th style="width: 100px;">Uni. Cant</th>
+              <th style="width: 100px; text-align: center;">Val. Unitario</th>
+              <th style="width: 100px;">Uni. VU</th>
+              <th style="width: 100px; text-align: center;">Tarifa</th>
+            </tr>
+          </thead>
+          <tbody id="map-tbody">
+            <tr class="row-empty"><td colspan="7">Cargando mapeos de producto...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FORMULARIO + BOTONERA LATERAL -->
+      <div class="form-row" style="border-top: 1px solid var(--border-200); padding-top: var(--s3); margin-top: var(--s2);">
+        <form id="mapeoForm" class="form-body" novalidate style="display: flex; flex-direction: column; gap: var(--s3);">
+          
+          <div class="form-grid-2-local">
+            <!-- PRODUCTO -->
+            <div class="field">
+              <label for="f-procod">Código de Producto *</label>
+              <div style="display: flex; gap: var(--s1);">
+                <input type="text" id="f-procod" name="procod" class="input input--upper" placeholder="EJ. AJAULA-YALELO-19" required maxlength="30" />
+                <button type="button" id="btnBuscarProducto" class="btn btn-soft" style="padding: 10px 14px; display: flex; align-items: center; justify-content: center;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- UBICACIÓN -->
+            <div class="field">
+              <label for="f-ubicod">Ubicación *</label>
+              <select id="f-ubicod" name="ubicod" class="input" required>
+                <option value="">SELECCIONE UBICACIÓN</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-2-local">
+            <!-- CANTIDAD -->
+            <div class="field">
+              <label for="f-cantidad">Cantidad Límite</label>
+              <input type="number" id="f-cantidad" name="cantidad" class="input" placeholder="0" min="0" />
+            </div>
+
+            <!-- UNIDAD CANTIDAD -->
+            <div class="field">
+              <label for="f-unicod_cant">Unidad de Cantidad</label>
+              <select id="f-unicod_cant" name="unicod_cant" class="input">
+                <option value="">SELECCIONE UNIDAD</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid-2-local">
+            <!-- VALOR UNITARIO -->
+            <div class="field">
+              <label for="f-valor_unitario">Valor Unitario (VU)</label>
+              <input type="number" id="f-valor_unitario" name="valor_unitario" class="input" placeholder="0.00" min="0" step="0.0001" />
+            </div>
+
+            <!-- UNIDAD VU -->
+            <div class="field">
+              <label for="f-unicod_vu">Unidad de VU</label>
+              <select id="f-unicod_vu" name="unicod_vu" class="input">
+                <option value="">SELECCIONE UNIDAD</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- TARIFA -->
+          <div class="field">
+            <label for="f-tarifa">Tarifa Moneda Local</label>
+            <input type="number" id="f-tarifa" name="tarifa" class="input" placeholder="0.00" min="0" step="0.0001" />
+          </div>
+
+          <!-- Area de mensajes del formulario -->
+          <div class="form-message-area" id="map-msg-area" style="margin-top: 12px; display: none; padding: 10px; border-radius: 8px;"></div>
+        </form>
+
+        <!-- BOTONES AL LADO (VERTICAL) -->
+        <aside class="actions-side" style="display: flex; flex-direction: column; gap: var(--s2); min-width: 150px;">
+          <button class="btn btn-soft" id="btn-new">Nuevo</button>
+          <button class="btn btn--brand" id="btn-save">Guardar</button>
+          <button class="btn btn-danger" id="btn-delete" style="display: none;">Eliminar</button>
+          <button class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODAL PARA BUSCAR PRODUCTOS DESDE LAS OTs DE SOLVER -->
+<div class="modal" id="modalProducto">
+  <div class="modal-dialog" style="max-width: 750px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Buscar Producto de OTs</h3>
+        <button type="button" class="modal-close" id="btnCloseModalProd">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field" style="margin-bottom: var(--s3);">
+          <input type="text" id="modalProdSearch" class="input input--upper" placeholder="ESCRIBA EL PRODUCTO O SU DESCRIPCIÓN PARA BUSCAR..." autocomplete="off" />
+          <p class="hint" style="margin-top: 4px;">Se filtrará en las OTs de Solver (mínimo 3 letras).</p>
+        </div>
+        <div class="table-clip" style="border: 1px solid var(--border-200); border-radius: 12px; max-height: 250px; overflow-y: auto;">
+          <table class="table table--grid">
+            <thead>
+              <tr>
+                <th style="width: 150px;">Código</th>
+                <th>Descripción del Producto</th>
+                <th style="width: 100px;">Unidad</th>
+              </tr>
+            </thead>
+            <tbody id="modalProdTbody">
+              <tr class="row-empty"><td colspan="3">Ingrese un término de búsqueda para ver productos.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ESTILOS LOCALES -->
+<style>
+.form-grid-2-local {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+}
+.form-grid-2-local .field {
+  margin-bottom: 0;
+  min-width: 0;
+}
+@media (max-width: 480px) {
+  .form-grid-2-local {
+    grid-template-columns: 1fr;
+    gap: var(--s2);
+  }
+}
+.form-message-area.success {
+  background-color: #eff6ff;
+  border: 1px solid var(--brand-300);
+  color: var(--brand-700);
+}
+.form-message-area.error {
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+}
+</style>
+
+<%- include('../partials/footer') %>

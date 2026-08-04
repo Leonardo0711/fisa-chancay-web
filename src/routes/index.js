@@ -13,6 +13,8 @@ const accesosRoutes = require('./accesos.routes');
 const programasRoutes = require('./programas.routes');
 const perfilesRoutes = require('./perfiles.routes');
 const catalogosRoutes = require('./catalogos.routes');
+const produccionRoutes = require('./produccion.routes');
+const maestrosRoutes = require('./maestros.routes');
 
 // Mount authentication routes first
 router.use(authRoutes);
@@ -56,19 +58,13 @@ router.get('/', (req, res) => {
   res.redirect((res.locals.baseUrl || '/') + 'home');
 });
 
-// Production entry placeholder view (Fase 2)
-router.get('/produccion', requireAuth, requirePermission('PRODUCCION', 'view'), (req, res) => {
-  res.render('produccion_placeholder', {
-    title: 'Registro Productivo - FISA',
-    path: '/produccion'
-  });
-});
-
 // Mount other resource routers
 router.use(usuariosRoutes);
 router.use(accesosRoutes);
 router.use(programasRoutes);
 router.use(perfilesRoutes);
 router.use(catalogosRoutes);
+router.use(produccionRoutes);
+router.use(maestrosRoutes);
 
 module.exports = router;

@@ -35,6 +35,13 @@ module.exports = {
   DB_ENCRYPT: process.env.DB_ENCRYPT === 'true',
   DB_TRUST_SERVER_CERTIFICATE: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true',
 
+  ESOLVER_DB_SERVER: process.env.ESOLVER_DB_SERVER,
+  ESOLVER_DB_NAME: process.env.ESOLVER_DB_NAME || 'eSolver',
+  ESOLVER_DB_USER: process.env.ESOLVER_DB_USER,
+  ESOLVER_DB_PASSWORD: process.env.ESOLVER_DB_PASSWORD,
+  ESOLVER_DB_ENCRYPT: process.env.ESOLVER_DB_ENCRYPT === 'true',
+  ESOLVER_DB_TRUST_SERVER_CERTIFICATE: process.env.ESOLVER_DB_TRUST_SERVER_CERTIFICATE === 'true',
+
   SESSION_SECRET: process.env.SESSION_SECRET || 'chancay_default_secret_keys',
   COOKIE_NAME: process.env.COOKIE_NAME || 'chancay_session',
   SESSION_TTL_HOURS: parseInt(process.env.SESSION_TTL_HOURS || '12', 10),

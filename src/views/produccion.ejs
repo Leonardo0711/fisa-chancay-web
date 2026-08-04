@@ -1,0 +1,310 @@
+<%- include('partials/header') %>
+<link rel="stylesheet" href="<%= baseUrl %>css/modules.css">
+<section class="container page-fill" id="produccionModule">
+  <h2 class="dashboard-title">Control de Producción</h2>
+
+  <div class="produccion-grid">
+    
+    <!-- COLUMNA IZQUIERDA: FORMULARIO DE REGISTRO -->
+    <div class="card" style="box-shadow: var(--shadow-md);">
+      <div class="card__head">
+        <h3 class="card__title">Registro de Producción</h3>
+      </div>
+      <div class="card__body" style="padding: var(--s3); display: flex; flex-direction: column; gap: var(--s3);">
+        <form id="produccionForm" autocomplete="off" novalidate style="display: flex; flex-direction: column; gap: var(--s3);">
+          
+          <!-- ORDEN DE TRABAJO (Abre el modal) -->
+          <div class="field">
+            <label for="f-otcod">ORDEN DE TRABAJO *</label>
+            <div style="display: flex; gap: var(--s2);">
+              <input id="f-otcod" class="input input--upper" placeholder="HAGA CLIC PARA BUSCAR OT" readonly style="cursor: pointer;" required />
+              <button type="button" id="btnBuscarOt" class="btn btn-soft" style="padding: 10px 14px; display: flex; align-items: center; justify-content: center;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- DETALLES INFORMATIVOS DE LA OT (FONDO GRIS) -->
+          <div class="info-block" style="background: var(--surface-100); border: 1px solid var(--border-200); border-radius: 12px; padding: var(--s2) var(--s3); display: flex; flex-direction: column; gap: 8px;">
+            <div class="info-grid-row">
+              <span class="info-grid-lbl">PRODUCTO:</span>
+              <span class="info-grid-val" id="lbl-procod">---</span>
+            </div>
+            <div class="info-grid-row">
+              <span class="info-grid-lbl">NOMBRE:</span>
+              <span class="info-grid-val" id="lbl-pronom" style="font-size: 0.85rem;">---</span>
+            </div>
+            <div class="info-grid-row">
+              <span class="info-grid-lbl">CANTIDAD:</span>
+              <span class="info-grid-val" id="lbl-canreq">---</span>
+            </div>
+          </div>
+
+          <!-- TIPO DE TRABAJO -->
+          <div class="field">
+            <label>TIPO DE TRABAJO</label>
+            <div style="display: flex; gap: var(--s4); margin-top: 6px;">
+              <label class="checkbox-container">
+                <input type="radio" name="tiptra" id="f-tiptra-destajo" value="D" checked disabled />
+                <span class="checkmark" style="border-radius: 50%;"></span>
+                DESTAJO
+              </label>
+              <label class="checkbox-container">
+                <input type="radio" name="tiptra" id="f-tiptra-jornal" value="J" disabled />
+                <span class="checkmark" style="border-radius: 50%;"></span>
+                JORNAL
+              </label>
+            </div>
+          </div>
+
+          <!-- UBICACIÓN -->
+          <div class="field">
+            <label for="f-ubicod">UBICACIÓN *</label>
+            <select id="f-ubicod" class="input" style="height: 48px; padding: 10px 14px;" required>
+              <option value="">SELECCIONE UBICACIÓN</option>
+            </select>
+          </div>
+
+          <!-- DETALLES DE LA UBICACIÓN -->
+          <div class="form-grid-2-local">
+            <div class="field">
+              <label>TIPO DE UBICACIÓN</label>
+              <input id="lbl-ubiuni" class="input" readonly style="background: var(--surface-100);" value="---" />
+            </div>
+            <div class="field">
+              <label id="lbl-unidad-lbl">CANTIDAD / VALOR</label>
+              <input id="lbl-valores" class="input" readonly style="background: var(--surface-100);" value="---" />
+            </div>
+          </div>
+
+          <!-- LOTE -->
+          <div class="field" id="loteFieldGroup">
+            <label for="f-lote">LOTE *</label>
+            <div style="display: grid; grid-template-columns: 1fr auto; gap: var(--s2); align-items: center;">
+              <select id="f-lote" class="input" style="height: 48px; padding: 10px 14px;">
+                <option value="">SELECCIONE LOTE</option>
+              </select>
+              <span id="lbl-lote-progress" class="badge" style="font-weight: 800; background: var(--brand-100); color: var(--brand-900); padding: 8px 12px; border-radius: 8px;">---</span>
+            </div>
+          </div>
+
+          <!-- CANTIDADES A INGRESAR -->
+          <div class="form-grid-2-local">
+            <div class="field">
+              <label for="f-cantidadIngresar">CANT. A INGRESAR *</label>
+              <div style="display: flex; align-items: center; position: relative;">
+                <input type="number" id="f-cantidadIngresar" class="input" placeholder="0" min="0" required style="width: 100%;" />
+                <span id="f-cant-lbl-badge" style="position: absolute; right: 12px; color: var(--muted); font-size: 0.75rem; font-weight: 700;">---</span>
+              </div>
+            </div>
+            <div class="field" id="vuFieldGroup">
+              <label for="f-vuIngresar">VU A INGRESAR *</label>
+              <div style="display: flex; align-items: center; position: relative;">
+                <input type="number" id="f-vuIngresar" class="input" placeholder="0.00" min="0" step="0.01" required style="width: 100%;" />
+                <span id="f-vu-lbl-badge" style="position: absolute; right: 12px; color: var(--muted); font-size: 0.75rem; font-weight: 700;">---</span>
+              </div>
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: TABLA DE OPERARIOS Y BOTONERA -->
+    <div class="card" style="box-shadow: var(--shadow-md); display: flex; flex-direction: column;">
+      <div class="card__head" style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <h3 class="card__title">Operarios Asignados</h3>
+        <button type="button" class="btn btn--brand" id="btnAgregarOperario" disabled>Agregar Operarios</button>
+      </div>
+      <div class="card__body" style="padding: var(--s3); display: flex; flex-direction: column; gap: var(--s3); flex: 1;">
+        
+        <!-- TABLA DE OPERARIOS -->
+        <div class="table-clip" style="border: 1px solid var(--border-200); border-radius: 12px; overflow-y: auto; max-height: 400px; flex: 1;">
+          <table class="table table--grid" id="operariosTable">
+            <thead>
+              <tr>
+                <th style="width: 100px;">CÓDIGO</th>
+                <th>NOMBRE</th>
+                <th style="width: 100px; text-align: center;">CANT. (#)</th>
+                <th style="width: 100px; text-align: center;">VU</th>
+                <th style="width: 60px; text-align: center;">ACC.</th>
+              </tr>
+            </thead>
+            <tbody id="operarios-tbody">
+              <tr class="row-empty"><td colspan="5">Ningún operario seleccionado. Utilice el botón "AGREGAR" de arriba.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- AREA DE MENSAJES / ALERTAS -->
+        <div id="alertArea" class="status-alert" style="display: none; padding: 14px var(--s3); border-radius: 12px; font-weight: 700; font-size: 0.95rem; text-align: center; text-transform: uppercase;"></div>
+
+        <!-- BOTONERA INFERIOR -->
+        <div style="display: flex; justify-content: flex-end; gap: var(--s3); border-top: 1px solid var(--border-200); padding-top: var(--s3); margin-top: auto;">
+          <button class="btn btn-soft" id="btnCancel">CANCELAR</button>
+          <button class="btn btn--brand" id="btnAccept" style="min-width: 140px;">ACEPTAR</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ==========================================
+     MODAL DE SELECCIÓN DE ORDEN DE TRABAJO (OT)
+     ========================================== -->
+<div class="modal" id="modalOt">
+  <div class="modal-dialog" style="max-width: 850px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Seleccionar Orden de Trabajo</h3>
+        <button type="button" class="modal-close" id="btnCloseModalOt">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="field" style="margin-bottom: var(--s3);">
+          <input type="text" id="modalOtSearch" class="input input--upper" placeholder="BUSCAR POR OT, CLIENTE O PRODUCTO..." autocomplete="off" />
+          <p class="hint" style="margin-top: 4px;">Ingrese al menos 3 caracteres para buscar.</p>
+        </div>
+        <div class="table-clip" style="border: 1px solid var(--border-200); border-radius: 12px; max-height: 300px; overflow-y: auto;">
+          <table class="table table--grid">
+            <thead>
+              <tr>
+                <th style="width: 120px;">OT</th>
+                <th>Cliente</th>
+                <th style="width: 100px;">OV</th>
+                <th style="width: 120px;">Producto</th>
+                <th>Descripción</th>
+                <th style="width: 80px; text-align: center;">Cant.</th>
+              </tr>
+            </thead>
+            <tbody id="modalOtTbody">
+              <tr class="row-empty"><td colspan="6">Ingrese un término de búsqueda para ver OTs.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================
+     MODAL DE SELECCIÓN DE OPERARIOS
+     ========================================== -->
+<div class="modal" id="modalOperario">
+  <div class="modal-dialog" style="max-width: 650px;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Asignar Operarios</h3>
+        <button type="button" class="modal-close" id="btnCloseModalOp">&times;</button>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: var(--s3);">
+        <input type="text" id="modalOpSearch" class="input" placeholder="BUSCAR POR NOMBRE O CÓDIGO..." autocomplete="off" />
+        
+        <div class="table-clip" style="border: 1px solid var(--border-200); border-radius: 12px; max-height: 250px; overflow-y: auto;">
+          <table class="table table--grid">
+            <thead>
+              <tr>
+                <th style="width: 40px; text-align: center;">Sel.</th>
+                <th style="width: 100px;">Código</th>
+                <th>Nombre y Apellido</th>
+                <th>Cargo</th>
+              </tr>
+            </thead>
+            <tbody id="modalOpTbody">
+              <tr class="row-empty"><td colspan="4">Cargando operarios...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-soft" id="btnCancelOp">Cerrar</button>
+        <button type="button" class="btn btn--brand" id="btnAcceptOp">Agregar Seleccionados</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ESTILOS LOCALES COMPLEMENTARIOS Y GRID RESPONSIVO -->
+<style>
+.produccion-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s4);
+  align-items: start;
+  width: 100%;
+}
+
+@media (min-width: 992px) {
+  .produccion-grid {
+    grid-template-columns: 460px 1fr; /* Izquierda fija limpia, Derecha flexible */
+  }
+}
+
+/* Rejilla local de 2 columnas sin min-width restrictivo en celdas */
+.form-grid-2-local {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-width: 0;
+  width: 100%;
+}
+.form-grid-2-local .field {
+  margin-bottom: 0;
+  min-width: 0;
+}
+
+@media (max-width: 480px) {
+  .form-grid-2-local {
+    grid-template-columns: 1fr;
+    gap: var(--s2);
+  }
+}
+
+.info-grid-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 0.9rem;
+}
+.info-grid-row:not(:last-child) {
+  border-bottom: 1px dashed var(--border-200);
+}
+.info-grid-lbl {
+  font-weight: 700;
+  color: var(--text-700);
+}
+.info-grid-val {
+  font-weight: 800;
+  color: var(--brand-900);
+  text-align: right;
+  max-width: 70%;
+  word-break: break-all;
+}
+.status-alert {
+  transition: all 0.3s ease;
+}
+.status-alert.alert-success {
+  background-color: #eff6ff;
+  border: 1px solid var(--brand-300);
+  color: var(--brand-700);
+}
+.status-alert.alert-error {
+  background-color: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+}
+.status-alert.alert-warning {
+  background-color: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #b45309;
+}
+.badge {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+</style>
+
+<%- include('partials/footer') %>

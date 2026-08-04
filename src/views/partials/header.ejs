@@ -68,6 +68,18 @@
                     <a href="<%= baseUrl %>perfiles" class="dd-item <%= (locals.path === '/perfiles') ? 'is-active' : '' %>">Perfiles</a>
                   </div>
                 </div>
+
+                <div class="nav-dropdown" id="maestrosDropdown">
+                  <button type="button" class="nav-link nav-link--dropdown <%= ['/maestros/unidades','/maestros/ubicaciones','/maestros/ubicaciones-producto'].includes(locals.path) ? 'is-active' : '' %>">
+                    Maestros
+                    <svg class="dd-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <div class="nav-dropdown-menu">
+                    <a href="<%= baseUrl %>maestros/unidades" class="dd-item <%= (locals.path === '/maestros/unidades') ? 'is-active' : '' %>">Unidades de Medida</a>
+                    <a href="<%= baseUrl %>maestros/ubicaciones" class="dd-item <%= (locals.path === '/maestros/ubicaciones') ? 'is-active' : '' %>">Ubicaciones</a>
+                    <a href="<%= baseUrl %>maestros/ubicaciones-producto" class="dd-item <%= (locals.path === '/maestros/ubicaciones-producto') ? 'is-active' : '' %>">Ubicaciones por Producto</a>
+                  </div>
+                </div>
               <% } %>
               
               <% if (user.usuadm || (user.permisos && user.permisos['PRODUCCION'] && user.permisos['PRODUCCION'].flgcon)) { %>
