@@ -3,46 +3,56 @@
 <section class="container page-fill" id="produccionModule">
   <h2 class="dashboard-title">Control de Producción</h2>
 
+  <!-- PANEL SUPERIOR: SELECCIÓN Y DETALLES DE ORDEN DE TRABAJO -->
+  <div class="card" style="box-shadow: var(--shadow-md); margin-bottom: var(--s3); background: var(--surface);">
+    <div class="card__head" style="border-bottom: 1px solid var(--border-200); padding: 16px 24px;">
+      <h3 class="card__title" style="font-size: 1.1rem; color: var(--brand-900);">Contexto de la Orden de Trabajo</h3>
+    </div>
+    <div class="card__body" style="padding: 24px; display: flex; flex-direction: column; gap: 20px;">
+      <div class="ot-header-layout">
+        <!-- Selector de OT -->
+        <div class="field" style="margin-bottom: 0;">
+          <label for="f-otcod" style="font-weight: 700; font-size: 0.8125rem; color: var(--brand-900); margin-bottom: 8px;">ORDEN DE TRABAJO *</label>
+          <div style="display: flex; gap: var(--s2); align-items: center;">
+            <input id="f-otcod" class="input input--upper" placeholder="HAGA CLIC PARA BUSCAR OT" readonly style="cursor: pointer; font-weight: 700; border-color: var(--brand-400);" required />
+            <button type="button" id="btnBuscarOt" class="btn btn-soft" style="padding: 10px 14px; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; border-radius: 12px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Info del Producto Horizontal -->
+        <div class="info-block-horizontal">
+          <div class="info-cell">
+            <span class="info-cell-lbl">CÓDIGO PRODUCTO</span>
+            <span class="info-cell-val" id="lbl-procod">---</span>
+          </div>
+          <div class="info-cell separator">
+            <span class="info-cell-lbl">DESCRIPCIÓN DEL PRODUCTO</span>
+            <span class="info-cell-val" id="lbl-pronom">---</span>
+          </div>
+          <div class="info-cell separator text-right">
+            <span class="info-cell-lbl">CANTIDAD REQUERIDA</span>
+            <span class="info-cell-val" id="lbl-canreq">---</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="produccion-grid">
     
-    <!-- COLUMNA IZQUIERDA: FORMULARIO DE REGISTRO -->
+    <!-- COLUMNA IZQUIERDA: PARÁMETROS -->
     <div class="card" style="box-shadow: var(--shadow-md);">
       <div class="card__head">
-        <h3 class="card__title">Registro de Producción</h3>
+        <h3 class="card__title">Parámetros de Producción</h3>
       </div>
       <div class="card__body" style="padding: var(--s3); display: flex; flex-direction: column; gap: var(--s3);">
         <form id="produccionForm" autocomplete="off" novalidate style="display: flex; flex-direction: column; gap: var(--s3);">
           
-          <!-- ORDEN DE TRABAJO (Abre el modal) -->
-          <div class="field">
-            <label for="f-otcod">ORDEN DE TRABAJO *</label>
-            <div style="display: flex; gap: var(--s2);">
-              <input id="f-otcod" class="input input--upper" placeholder="HAGA CLIC PARA BUSCAR OT" readonly style="cursor: pointer;" required />
-              <button type="button" id="btnBuscarOt" class="btn btn-soft" style="padding: 10px 14px; display: flex; align-items: center; justify-content: center;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="11" cy="11" r="8"></circle>
-                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- DETALLES INFORMATIVOS DE LA OT (FONDO GRIS) -->
-          <div class="info-block" style="background: var(--surface-100); border: 1px solid var(--border-200); border-radius: 12px; padding: var(--s2) var(--s3); display: flex; flex-direction: column; gap: 8px;">
-            <div class="info-grid-row">
-              <span class="info-grid-lbl">PRODUCTO:</span>
-              <span class="info-grid-val" id="lbl-procod">---</span>
-            </div>
-            <div class="info-grid-row">
-              <span class="info-grid-lbl">NOMBRE:</span>
-              <span class="info-grid-val" id="lbl-pronom" style="font-size: 0.85rem;">---</span>
-            </div>
-            <div class="info-grid-row">
-              <span class="info-grid-lbl">CANTIDAD:</span>
-              <span class="info-grid-val" id="lbl-canreq">---</span>
-            </div>
-          </div>
-
           <!-- TIPO DE TRABAJO -->
           <div class="field">
             <label>TIPO DE TRABAJO</label>
@@ -239,7 +249,71 @@
 
 @media (min-width: 992px) {
   .produccion-grid {
-    grid-template-columns: 460px 1fr; /* Izquierda fija limpia, Derecha flexible */
+    grid-template-columns: 1fr 1fr; /* 50/50 balanceado */
+  }
+}
+
+/* Layout superior de OT y Producto */
+.ot-header-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s3);
+  align-items: center;
+}
+@media (min-width: 992px) {
+  .ot-header-layout {
+    grid-template-columns: 300px 1fr;
+  }
+}
+
+.info-block-horizontal {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--s2);
+  background: var(--surface-100);
+  border: 1px solid var(--border-200);
+  border-radius: 12px;
+  padding: 14px 20px;
+}
+@media (min-width: 768px) {
+  .info-block-horizontal {
+    grid-template-columns: auto 1fr auto;
+    gap: var(--s4);
+  }
+  .info-block-horizontal .info-cell.separator {
+    border-left: 1px solid var(--border-300);
+    padding-left: var(--s4);
+  }
+}
+
+.info-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.info-cell-lbl {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.info-cell-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--brand-900);
+  word-break: break-word;
+}
+.text-right {
+  text-align: right;
+}
+@media (max-width: 767px) {
+  .text-right {
+    text-align: left;
+  }
+  .info-block-horizontal .info-cell:not(:first-child) {
+    border-top: 1px dashed var(--border-200);
+    padding-top: var(--s2);
   }
 }
 
