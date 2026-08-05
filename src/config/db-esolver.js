@@ -5,6 +5,7 @@ const env = require('./env');
 
 const config = {
   server: env.ESOLVER_DB_SERVER,
+  port: env.ESOLVER_DB_PORT,
   database: env.ESOLVER_DB_NAME,
   user: env.ESOLVER_DB_USER,
   password: env.ESOLVER_DB_PASSWORD,

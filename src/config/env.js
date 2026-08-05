@@ -41,6 +41,7 @@ module.exports = {
   ESOLVER_DB_PASSWORD: process.env.ESOLVER_DB_PASSWORD,
   ESOLVER_DB_ENCRYPT: process.env.ESOLVER_DB_ENCRYPT === 'true',
   ESOLVER_DB_TRUST_SERVER_CERTIFICATE: process.env.ESOLVER_DB_TRUST_SERVER_CERTIFICATE === 'true',
+  ESOLVER_DB_PORT: parseInt(process.env.ESOLVER_DB_PORT || '1433', 10),
 
   SESSION_SECRET: process.env.SESSION_SECRET || 'chancay_default_secret_keys',
   COOKIE_NAME: process.env.COOKIE_NAME || 'chancay_session',
