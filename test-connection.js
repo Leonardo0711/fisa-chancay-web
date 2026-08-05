@@ -2,7 +2,7 @@ const sql = require('mssql');
 
 const config = {
   server: 'hpfisa.ddns.net',
-  port: 1433,
+  port: 8501,
   database: 'eSolver',
   user: 'uProFISA',
   password: 'uProFISA123$',
