@@ -48,10 +48,15 @@ async function eliminarPrograma(procod) {
   return programasDal.eliminarPrograma(procod);
 }
 
+async function obtenerNextCode() {
+  return programasDal.obtenerNextCode();
+}
+
 module.exports = {
   listarProgramas,
   crearPrograma,
   editarPrograma,
   cambiarEstado,
-  eliminarPrograma
+  eliminarPrograma,
+  obtenerNextCode
 };

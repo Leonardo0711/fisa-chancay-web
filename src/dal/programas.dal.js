@@ -50,15 +50,22 @@ async function getPrograma(procod) {
  * Creates a new program record.
  */
 async function crearPrograma(data, creator) {
-  const procod = data.procod.trim().toUpperCase();
   const pronom = data.pronom.trim();
   const prodes = data.prodes ? data.prodes.trim() : null;
   const prostd = data.prostd !== undefined ? (data.prostd ? 1 : 0) : 1;
 
   await db.query(
-    `INSERT INTO SEG_PROGRAMA (procod, pronom, prodes, prostd, codusucre, fecusucre)
-     VALUES (@procod, @pronom, @prodes, @prostd, @creator, GETDATE())`,
-    { procod, pronom, prodes, prostd, creator }
+    `DECLARE @next_procod CHAR(4);
+     SELECT @next_procod = RIGHT('0000' + CAST(COALESCE(MAX(CAST(procod AS INT)), 0) + 1 AS VARCHAR(4)), 4)
+     FROM SEG_PROGRAMA 
+     WHERE ISNUMERIC(procod) = 1;
+
+     IF @next_procod IS NULL OR @next_procod = '0000'
+       SET @next_procod = '0001';
+
+     INSERT INTO SEG_PROGRAMA (procod, pronom, prodes, prostd, codusucre, fecusucre)
+     VALUES (@next_procod, @pronom, @prodes, @prostd, @creator, GETDATE())`,
+    { pronom, prodes, prostd, creator }
   );
   return true;
 }
@@ -115,24 +122,31 @@ async function cambiarEstado(procod, estado, modifier) {
 async function eliminarPrograma(procod) {
   if (!procod) return false;
   const normCode = procod.trim().toUpperCase();
-  const pool = await db.connect();
-  const tx = new db.sql.Transaction(pool);
-  await tx.begin();
-  try {
-    const req1 = new db.sql.Request(tx);
-    await req1.input('procod', normCode).query('DELETE FROM SEG_PERFIL WHERE procod = @procod');
-
-    const req2 = new db.sql.Request(tx);
-    await req2.input('procod', normCode).query('DELETE FROM SEG_PROGRAMA WHERE procod = @procod');
-
-    await tx.commit();
-    return true;
-  } catch (err) {
-    if (tx._aborted !== true) {
-      await tx.rollback();
-    }
-    throw err;
+  
+  // Check if referenced in SEG_PERFIL
+  const check = await db.query(
+    `SELECT COUNT(1) AS count FROM SEG_PERFIL WHERE procod = @procod`,
+    { procod: normCode }
+  );
+  if (check.recordset[0] && check.recordset[0].count > 0) {
+    throw new Error('No se puede borrar el Programa porque está asignado a uno o más perfiles de usuarios. Debe desasignar los perfiles primero.');
   }
+
+  await db.query(
+    `DELETE FROM SEG_PROGRAMA WHERE procod = @procod`,
+    { procod: normCode }
+  );
+  return true;
+}
+
+async function obtenerNextCode() {
+  const res = await db.query(
+    `SELECT RIGHT('0000' + CAST(COALESCE(MAX(CAST(procod AS INT)), 0) + 1 AS VARCHAR(4)), 4) AS nextCode
+     FROM SEG_PROGRAMA 
+     WHERE ISNUMERIC(procod) = 1`
+  );
+  const nextVal = res.recordset[0] ? res.recordset[0].nextCode : null;
+  return nextVal || '0001';
 }
 
 module.exports = {
@@ -141,5 +155,6 @@ module.exports = {
   crearPrograma,
   editarPrograma,
   cambiarEstado,
-  eliminarPrograma
+  eliminarPrograma,
+  obtenerNextCode
 };

@@ -33,22 +33,21 @@
       <div class="form-row" style="border-top: 1px solid var(--border-200); padding-top: var(--s3); margin-top: var(--s2);">
         <form id="ubicacionForm" class="form-body" novalidate style="display: flex; flex-direction: column; gap: var(--s3);">
           <div class="form-grid-2-local">
-            <!-- Código auto-generado: hidden on create, visible read-only on edit -->
-            <div class="field" id="f-ubicod-container" style="display: none;">
-              <label>Código de Ubicación</label>
-              <input type="hidden" id="f-ubicod" name="ubicod" />
-              <div id="f-ubicod-display" style="padding: 10px 14px; font-weight: bold; background: var(--surface-100); border-radius: 8px; border: 1px solid var(--border-200); height: 42px; display: flex; align-items: center;"></div>
+            <!-- Código auto-generado -->
+            <div class="field" id="f-ubicod-container">
+              <label for="f-ubicod">Código de Ubicación</label>
+              <input type="text" id="f-ubicod" name="ubicod" class="input" readonly style="font-weight: bold; background: var(--surface-100);" placeholder="Cargando..." />
             </div>
             
-            <div class="field" id="f-ubinom-container" style="grid-column: span 2;">
+            <div class="field" id="f-ubinom-container">
               <label for="f-ubinom">Nombre de Ubicación *</label>
-              <input type="text" id="f-ubinom" name="ubinom" class="input input--upper" placeholder="EJ. CUCHILLA" required maxlength="100" />
+              <input type="text" id="f-ubinom" name="ubinom" class="input" placeholder="Ej. Cuchilla" required maxlength="100" />
             </div>
           </div>
 
           <div class="field">
             <label for="f-ubides">Descripción de la Ubicación</label>
-            <input type="text" id="f-ubides" name="ubides" class="input" placeholder="EJ. Ubicación de Destajo No Universal" maxlength="250" />
+            <input type="text" id="f-ubides" name="ubides" class="input" placeholder="Ej. Ubicación de Destajo No Universal" maxlength="250" />
           </div>
 
           <div class="form-grid-2-local">
@@ -87,15 +86,16 @@
           </div>
           
           <!-- Area de mensajes del formulario -->
-          <div class="form-message-area" id="ubi-msg-area" style="margin-top: 12px; display: none; padding: 10px; border-radius: 8px;"></div>
+          <div class="form-message-area" id="ubi-msg-area" style="margin-top: 12px;"></div>
         </form>
 
         <!-- BOTONES AL LADO (VERTICAL) -->
-        <aside class="actions-side" style="display: flex; flex-direction: column; gap: var(--s2); min-width: 150px;">
-          <button class="btn btn-soft" id="btn-new">Nuevo</button>
-          <button class="btn btn--brand" id="btn-save">Guardar</button>
-          <button class="btn btn-danger" id="btn-delete" style="display: none;">Eliminar</button>
-          <button class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+        <aside class="actions-side">
+          <button type="button" class="btn btn-soft" id="btn-new">NUEVO</button>
+          <button type="button" class="btn btn--brand" id="btn-save">GRABAR</button>
+          <button type="button" class="btn btn-warning" id="btn-anular" style="display: none;">ANULAR</button>
+          <button type="button" class="btn btn-danger" id="btn-delete" style="display: none;">BORRAR</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel">CERRAR</button>
         </aside>
       </div>
     </div>

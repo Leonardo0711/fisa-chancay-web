@@ -172,27 +172,31 @@ async function cambiarEstado(usucod, estado, modifier) {
 async function eliminarUsuario(usucod) {
   if (!usucod) return false;
   const normCode = usucod.trim();
-  const pool = await db.connect();
-  const tx = new db.sql.Transaction(pool);
-  await tx.begin();
-  try {
-    const req1 = new db.sql.Request(tx);
-    await req1.input('usucod', normCode).query('DELETE FROM SEG_PERFIL WHERE usucod = @usucod');
 
-    const req2 = new db.sql.Request(tx);
-    await req2.input('usucod', normCode).query('DELETE FROM SEG_ACCESO WHERE usucod = @usucod');
-
-    const req3 = new db.sql.Request(tx);
-    await req3.input('usucod', normCode).query('DELETE FROM SEG_USUARIO WHERE usucod = @usucod');
-
-    await tx.commit();
-    return true;
-  } catch (err) {
-    if (tx._aborted !== true) {
-      await tx.rollback();
-    }
-    throw err;
+  // 1. Check in SEG_PERFIL
+  const checkPerfil = await db.query(
+    `SELECT COUNT(1) AS count FROM SEG_PERFIL WHERE usucod = @usucod`,
+    { usucod: normCode }
+  );
+  if (checkPerfil.recordset[0] && checkPerfil.recordset[0].count > 0) {
+    throw new Error('No se puede borrar el Usuario porque está referenciado en la tabla de Perfiles de Seguridad. Debe desasignar sus perfiles primero.');
   }
+
+  // 2. Check in SEG_ACCESO
+  const checkAcceso = await db.query(
+    `SELECT COUNT(1) AS count FROM SEG_ACCESO WHERE usucod = @usucod`,
+    { usucod: normCode }
+  );
+  if (checkAcceso.recordset[0] && checkAcceso.recordset[0].count > 0) {
+    throw new Error('No se puede borrar el Usuario porque está referenciado en la tabla de Accesos de Seguridad. Debe eliminar sus accesos primero.');
+  }
+
+  // 3. Physical delete
+  await db.query(
+    `DELETE FROM SEG_USUARIO WHERE usucod = @usucod`,
+    { usucod: normCode }
+  );
+  return true;
 }
 
 module.exports = {

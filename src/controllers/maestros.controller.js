@@ -71,8 +71,9 @@ async function apiEliminarUnidad(req, res, next) {
   try {
     const { unicod } = req.params;
     await maestrosService.eliminarUnidad(unicod, req.user.usucod);
-    return res.json({ success: true, message: 'Unidad de medida desactivada correctamente.' });
+    return res.json({ success: true, message: 'Unidad de medida eliminada correctamente.' });
   } catch (err) {
+    err.userMessage = err.message;
     next(err);
   }
 }
@@ -111,8 +112,9 @@ async function apiEliminarUbicacion(req, res, next) {
   try {
     const { ubicod } = req.params;
     await maestrosService.eliminarUbicacion(ubicod, req.user.usucod);
-    return res.json({ success: true, message: 'Ubicación desactivada correctamente.' });
+    return res.json({ success: true, message: 'Ubicación eliminada correctamente.' });
   } catch (err) {
+    err.userMessage = err.message;
     next(err);
   }
 }
@@ -157,6 +159,52 @@ async function apiEliminarUbicacionProducto(req, res, next) {
   }
 }
 
+// --- NUEVOS MÉTODOS DE AUTOGENERACIÓN Y CAMBIO DE ESTADO ---
+
+async function apiObtenerNextCodeUnidad(req, res, next) {
+  try {
+    const nextCode = await maestrosService.obtenerNextCodeUnidad();
+    return res.json({ nextCode });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiCambiarEstadoUnidad(req, res, next) {
+  try {
+    const { unicod } = req.params;
+    const { estado } = req.body;
+    await maestrosService.cambiarEstadoUnidad(unicod, estado, req.user.usucod);
+    const msg = estado ? 'UNIDAD ACTIVADA' : 'UNIDAD ANULADA';
+    return res.json({ success: true, message: msg });
+  } catch (err) {
+    err.userMessage = err.message;
+    next(err);
+  }
+}
+
+async function apiObtenerNextCodeUbicacion(req, res, next) {
+  try {
+    const nextCode = await maestrosService.obtenerNextCodeUbicacion();
+    return res.json({ nextCode });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiCambiarEstadoUbicacion(req, res, next) {
+  try {
+    const { ubicod } = req.params;
+    const { estado } = req.body;
+    await maestrosService.cambiarEstadoUbicacion(ubicod, estado, req.user.usucod);
+    const msg = estado ? 'UBICACIÓN ACTIVADA' : 'UBICACIÓN ANULADA';
+    return res.json({ success: true, message: msg });
+  } catch (err) {
+    err.userMessage = err.message;
+    next(err);
+  }
+}
+
 module.exports = {
   renderUnidades,
   renderUbicaciones,
@@ -172,5 +220,9 @@ module.exports = {
   apiListarUbicacionesProducto,
   apiCrearUbicacionProducto,
   apiEditarUbicacionProducto,
-  apiEliminarUbicacionProducto
+  apiEliminarUbicacionProducto,
+  apiObtenerNextCodeUnidad,
+  apiCambiarEstadoUnidad,
+  apiObtenerNextCodeUbicacion,
+  apiCambiarEstadoUbicacion
 };

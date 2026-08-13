@@ -153,13 +153,17 @@
     
     // Adjust action button states
     btnAnular.disabled = false;
-    btnAnular.textContent = user.usustd ? 'Desactivar' : 'Activar';
-    btnAnular.className = user.usustd ? 'btn btn-danger' : 'btn btn-soft';
+    btnAnular.style.display = 'inline-block';
+    btnAnular.textContent = user.usustd ? 'ANULAR' : 'ACTIVAR';
+    btnAnular.className = user.usustd ? 'btn btn-warning' : 'btn btn-soft';
     
     // Show Accesos button
     btnAcc.style.visibility = 'visible';
     btnAcc.textContent = 'Accesos';
-    if (btnDelete) btnDelete.style.display = 'inline-block';
+    if (btnDelete) {
+      btnDelete.style.display = 'inline-block';
+      btnDelete.textContent = 'BORRAR';
+    }
 
     // Store original values and check for changes (initially disabled)
     originalValues = {
@@ -190,8 +194,9 @@
     f_newpass.value = '';
     
     btnAnular.disabled = true;
-    btnAnular.textContent = 'Desactivar';
-    btnAnular.className = 'btn btn-danger';
+    btnAnular.style.display = 'none';
+    btnAnular.textContent = 'ANULAR';
+    btnAnular.className = 'btn btn-warning';
     btnAcc.style.visibility = 'hidden';
     if (btnDelete) btnDelete.style.display = 'none';
     
@@ -302,7 +307,7 @@
       if (!user) return;
       
       const targetStatus = !user.usustd;
-      StatusBar.showMessage(`${targetStatus ? 'Activando' : 'Desactivando'} usuario ${selectedUserCode}...`, 'info');
+      StatusBar.showMessage(`${targetStatus ? 'Activando' : 'Anulando'} usuario ${selectedUserCode}...`, 'info');
       try {
         const res = await AppFetch(`/api/usuarios/${selectedUserCode}/status`, {
           method: 'PATCH',
@@ -314,8 +319,8 @@
         // Update form state
         const updatedUser = cachedUsers.find(u => u.usucod === selectedUserCode);
         if (updatedUser) {
-          btnAnular.textContent = updatedUser.usustd ? 'Desactivar' : 'Activar';
-          btnAnular.className = updatedUser.usustd ? 'btn btn-danger' : 'btn btn-soft';
+          btnAnular.textContent = updatedUser.usustd ? 'ANULAR' : 'ACTIVAR';
+          btnAnular.className = updatedUser.usustd ? 'btn btn-warning' : 'btn btn-soft';
         }
       } catch (err) {
         StatusBar.showMessage(err.message, 'error');
@@ -326,9 +331,6 @@
   if (btnDelete) {
     btnDelete.addEventListener('click', async () => {
       if (!selectedUserCode) return;
-      if (!confirm(`¿Está seguro de eliminar permanentemente al usuario "${selectedUserCode}"?\nEsta acción es irreversible y eliminará todos sus accesos y perfiles relacionados.`)) {
-        return;
-      }
       StatusBar.showMessage(`Eliminando usuario ${selectedUserCode}...`, 'info');
       try {
         const res = await AppFetch(`/api/usuarios/${selectedUserCode}`, {

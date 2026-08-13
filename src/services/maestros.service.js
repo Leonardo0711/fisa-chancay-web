@@ -106,6 +106,28 @@ async function eliminarUbicacionProducto(procod, ubicod) {
   return maestrosDal.eliminarUbicacionProducto(procod, ubicod);
 }
 
+async function obtenerNextCodeUnidad() {
+  return maestrosDal.obtenerNextCodeUnidad();
+}
+
+async function cambiarEstadoUnidad(unicod, estado, actor) {
+  if (!unicod) {
+    throw new Error('Código de unidad no especificado.');
+  }
+  return maestrosDal.cambiarEstadoUnidad(unicod, estado, actor);
+}
+
+async function obtenerNextCodeUbicacion() {
+  return maestrosDal.obtenerNextCodeUbicacion();
+}
+
+async function cambiarEstadoUbicacion(ubicod, estado, actor) {
+  if (!ubicod) {
+    throw new Error('Código de ubicación no especificado.');
+  }
+  return maestrosDal.cambiarEstadoUbicacion(ubicod, estado, actor);
+}
+
 module.exports = {
   listarUnidades,
   crearUnidad,
@@ -118,5 +140,9 @@ module.exports = {
   listarUbicacionesProducto,
   crearUbicacionProducto,
   editarUbicacionProducto,
-  eliminarUbicacionProducto
+  eliminarUbicacionProducto,
+  obtenerNextCodeUnidad,
+  cambiarEstadoUnidad,
+  obtenerNextCodeUbicacion,
+  cambiarEstadoUbicacion
 };

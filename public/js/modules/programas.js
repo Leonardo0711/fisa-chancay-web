@@ -49,13 +49,6 @@
     FormValidator.setupAutoClear(programaForm);
   }
 
-  // Capitalize procod while typing and check changes
-  if (f_procod) {
-    f_procod.addEventListener('input', () => {
-      f_procod.value = f_procod.value.toUpperCase();
-    });
-  }
-
   // Listen to all inputs to update button status
   [f_procod, f_pronom, f_prodes].forEach(input => {
     if (input) {
@@ -64,12 +57,14 @@
     }
   });
 
-  // Load and Render Programs List
   async function fetchPrograms() {
     try {
       const programs = await AppFetch('/api/programas');
       cachedPrograms = programs;
       renderTable(programs);
+      if (!selectedProgramCode) {
+        await resetForm();
+      }
     } catch (err) {
       StatusBar.showMessage('Error al cargar programas: ' + err.message, 'error');
     }
@@ -80,7 +75,7 @@
     tableBody.innerHTML = '';
     
     if (programs.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="3" class="text-center">No se encontraron registros.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No se encontraron registros.</td></tr>';
       return;
     }
     
@@ -99,6 +94,7 @@
       tr.innerHTML = `
         <td class="uppercase"><strong>${prog.procod}</strong></td>
         <td>${prog.pronom}</td>
+        <td>${prog.prodes || ''}</td>
         <td>${statusBadge}</td>
       `;
 
@@ -126,13 +122,14 @@
     }
     
     f_procod.value = prog.procod;
-    f_procod.disabled = true;
+    f_procod.readOnly = true;
     f_pronom.value = prog.pronom;
     f_prodes.value = prog.prodes || '';
     
     btnAnular.disabled = false;
-    btnAnular.textContent = prog.prostd ? 'Desactivar' : 'Activar';
-    btnAnular.className = prog.prostd ? 'btn btn-danger' : 'btn btn-soft';
+    btnAnular.style.display = 'inline-block';
+    btnAnular.textContent = prog.prostd ? 'ANULAR' : 'ACTIVAR';
+    btnAnular.className = prog.prostd ? 'btn btn-warning' : 'btn btn-soft';
     if (btnDelete) btnDelete.style.display = 'inline-block';
 
     // Store original values and check for changes (initially disabled)
@@ -144,7 +141,7 @@
     checkForChanges();
   }
 
-  function resetForm() {
+  async function resetForm() {
     selectedProgramCode = null;
     isEditing = false;
     
@@ -154,24 +151,34 @@
     });
     
     programaForm.reset();
-    f_procod.disabled = false;
+    f_procod.readOnly = true;
+    f_procod.placeholder = 'Cargando...';
+    f_procod.value = '';
     
     btnAnular.disabled = true;
-    btnAnular.textContent = 'Desactivar';
-    btnAnular.className = 'btn btn-danger';
+    btnAnular.style.display = 'none';
     if (btnDelete) btnDelete.style.display = 'none';
     
     if (window.FormValidator) {
       FormValidator.clearValidation(programaForm);
     }
 
-    // Reset original values and check changes (initially disabled)
     originalValues = {
       procod: '',
       pronom: '',
       prodes: ''
     };
     checkForChanges();
+
+    try {
+      const res = await AppFetch('/api/programas/next-code');
+      f_procod.value = res.nextCode;
+      originalValues.procod = res.nextCode;
+      checkForChanges();
+    } catch (err) {
+      console.error('Error fetching next code:', err);
+      f_procod.placeholder = 'Error al cargar';
+    }
   }
 
   // Real-time Search Filter
@@ -184,7 +191,8 @@
       }
       const filtered = cachedPrograms.filter(p => 
         p.procod.toLowerCase().includes(q) ||
-        p.pronom.toLowerCase().includes(q)
+        p.pronom.toLowerCase().includes(q) ||
+        (p.prodes || '').toLowerCase().includes(q)
       );
       renderTable(filtered);
     });
@@ -194,7 +202,7 @@
   if (btnNew) {
     btnNew.addEventListener('click', () => {
       resetForm();
-      f_procod.focus();
+      f_pronom.focus();
     });
   }
 
@@ -255,7 +263,7 @@
       if (!prog) return;
       
       const targetStatus = !prog.prostd;
-      StatusBar.showMessage(`${targetStatus ? 'Activando' : 'Desactivando'} programa ${selectedProgramCode}...`, 'info');
+      StatusBar.showMessage(`${targetStatus ? 'Activando' : 'Anulando'} programa ${selectedProgramCode}...`, 'info');
       try {
         const res = await AppFetch(`/api/programas/${selectedProgramCode}/status`, {
           method: 'PATCH',
@@ -266,8 +274,8 @@
         
         const updated = cachedPrograms.find(p => p.procod === selectedProgramCode);
         if (updated) {
-          btnAnular.textContent = updated.prostd ? 'Desactivar' : 'Activar';
-          btnAnular.className = updated.prostd ? 'btn btn-danger' : 'btn btn-soft';
+          btnAnular.textContent = updated.prostd ? 'ANULAR' : 'ACTIVAR';
+          btnAnular.className = updated.prostd ? 'btn btn-warning' : 'btn btn-soft';
         }
       } catch (err) {
         StatusBar.showMessage(err.message, 'error');
@@ -278,9 +286,6 @@
   if (btnDelete) {
     btnDelete.addEventListener('click', async () => {
       if (!selectedProgramCode) return;
-      if (!confirm(`¿Está seguro de eliminar permanentemente el programa "${selectedProgramCode}"?\nEsta acción es irreversible y eliminará todos los perfiles asociados.`)) {
-        return;
-      }
       StatusBar.showMessage(`Eliminando programa ${selectedProgramCode}...`, 'info');
       try {
         const res = await AppFetch(`/api/programas/${selectedProgramCode}`, {

@@ -97,15 +97,15 @@
           </div>
 
           <!-- Area de mensajes del formulario -->
-          <div class="form-message-area" id="map-msg-area" style="margin-top: 12px; display: none; padding: 10px; border-radius: 8px;"></div>
+          <div class="form-message-area" id="map-msg-area" style="margin-top: 12px;"></div>
         </form>
 
         <!-- BOTONES AL LADO (VERTICAL) -->
-        <aside class="actions-side" style="display: flex; flex-direction: column; gap: var(--s2); min-width: 150px;">
-          <button class="btn btn-soft" id="btn-new">Nuevo</button>
-          <button class="btn btn--brand" id="btn-save">Guardar</button>
-          <button class="btn btn-danger" id="btn-delete" style="display: none;">Eliminar</button>
-          <button class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+        <aside class="actions-side">
+          <button type="button" class="btn btn-soft" id="btn-new">NUEVO</button>
+          <button type="button" class="btn btn--brand" id="btn-save">GRABAR</button>
+          <button type="button" class="btn btn-danger" id="btn-delete" style="display: none;">BORRAR</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel">CERRAR</button>
         </aside>
       </div>
     </div>
@@ -117,13 +117,13 @@
   <div class="modal-dialog" style="max-width: 750px;">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Buscar Producto de OTs</h3>
+        <h3>Buscar Producto</h3>
         <button type="button" class="modal-close" id="btnCloseModalProd">&times;</button>
       </div>
       <div class="modal-body">
         <div class="field" style="margin-bottom: var(--s3);">
           <input type="text" id="modalProdSearch" class="input input--upper" placeholder="ESCRIBA EL PRODUCTO O SU DESCRIPCIÓN PARA BUSCAR..." autocomplete="off" />
-          <p class="hint" style="margin-top: 4px;">Se filtrará en las OTs de Solver (mínimo 3 letras).</p>
+          <p class="hint" style="margin-top: 4px;">Se filtrará en los productos de Solver (mínimo 3 letras).</p>
         </div>
         <div class="table-clip" style="border: 1px solid var(--border-200); border-radius: 12px; max-height: 250px; overflow-y: auto;">
           <table class="table table--grid">

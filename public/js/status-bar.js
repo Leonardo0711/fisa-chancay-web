@@ -27,6 +27,7 @@
       // 1. First priority: Check if a dedicated .form-message-area is on the page
       const msgArea = document.querySelector('.form-message-area');
       if (msgArea) {
+        msgArea.style.display = 'block';
         msgArea.innerHTML = `
           <div class="static-status-message" style="
             display: block;
@@ -57,11 +58,13 @@
           document.head.appendChild(style);
         }
         
-        // Clear message after 6 seconds
+        // Clear message after 6 seconds only for non-error types
         if (window.statusMsgTimeout) clearTimeout(window.statusMsgTimeout);
-        window.statusMsgTimeout = setTimeout(() => {
-          msgArea.innerHTML = '';
-        }, 6000);
+        if (type !== 'error' && type !== 'danger') {
+          window.statusMsgTimeout = setTimeout(() => {
+            msgArea.innerHTML = '';
+          }, 6000);
+        }
         return;
       }
       
@@ -111,11 +114,13 @@
           document.head.appendChild(style);
         }
         
-        // Auto-clear message after 5 seconds
+        // Auto-clear message after 5 seconds only for non-error types
         if (window.statusMsgTimeout) clearTimeout(window.statusMsgTimeout);
-        window.statusMsgTimeout = setTimeout(() => {
-          msgContainer.remove();
-        }, 5000);
+        if (type !== 'error' && type !== 'danger') {
+          window.statusMsgTimeout = setTimeout(() => {
+            msgContainer.remove();
+          }, 5000);
+        }
         
       } else {
         // Fallback to fixed toast (for pages without forms like login)

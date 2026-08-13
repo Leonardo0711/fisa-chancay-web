@@ -85,11 +85,21 @@ async function apiEliminarPrograma(req, res, next) {
   }
 }
 
+async function apiObtenerNextCode(req, res, next) {
+  try {
+    const nextCode = await programasService.obtenerNextCode();
+    return res.json({ nextCode });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   renderProgramas,
   apiListarProgramas,
   apiCrearPrograma,
   apiEditarPrograma,
   apiCambiarEstado,
-  apiEliminarPrograma
+  apiEliminarPrograma,
+  apiObtenerNextCode
 };

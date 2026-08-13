@@ -64,13 +64,35 @@ async function editarUnidad(unicod, data, actor) {
 }
 
 async function eliminarUnidad(unicod, actor) {
+  const normCode = unicod.trim();
+  
+  // 1. Check in PAR_UBICACION
+  const checkUbi = await db.query(
+    `SELECT COUNT(1) AS count FROM FTALLER.dbo.PAR_UBICACION WHERE unicod = @unicod AND codusuanu IS NULL`,
+    { unicod: normCode }
+  );
+  if (checkUbi.recordset[0] && checkUbi.recordset[0].count > 0) {
+    throw new Error('No se puede borrar la Unidad porque está referenciada en el Maestro de Ubicaciones. Debe eliminar primero las ubicaciones asociadas.');
+  }
+
+  // 2. Check in PAR_UBICACION_PRODUCTO (if table exists)
+  const checkTable = await db.query(
+    `SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'PAR_UBICACION_PRODUCTO'`
+  );
+  if (checkTable.recordset.length > 0) {
+    const checkMap = await db.query(
+      `SELECT COUNT(1) AS count FROM FTALLER.dbo.PAR_UBICACION_PRODUCTO WHERE unicod_cant = @unicod OR unicod_vu = @unicod`,
+      { unicod: normCode }
+    );
+    if (checkMap.recordset[0] && checkMap.recordset[0].count > 0) {
+      throw new Error('No se puede borrar la Unidad porque está referenciada en la Configuración de Ubicaciones por Producto.');
+    }
+  }
+
+  // 3. Physical delete
   await db.query(
-    `UPDATE FTALLER.dbo.PAR_UNIDAD 
-     SET unistd = 0, 
-         codusuanu = @actor, 
-         fecusuanu = GETDATE() 
-     WHERE empcod = '01' AND unicod = @unicod`,
-    { unicod: unicod.trim(), actor }
+    `DELETE FROM FTALLER.dbo.PAR_UNIDAD WHERE empcod = '01' AND unicod = @unicod`,
+    { unicod: normCode }
   );
   return true;
 }
@@ -149,13 +171,26 @@ async function editarUbicacion(ubicod, data, actor) {
 }
 
 async function eliminarUbicacion(ubicod, actor) {
+  const normCode = ubicod.trim();
+
+  // 1. Check in PAR_UBICACION_PRODUCTO (if table exists)
+  const checkTable = await db.query(
+    `SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'PAR_UBICACION_PRODUCTO'`
+  );
+  if (checkTable.recordset.length > 0) {
+    const checkMap = await db.query(
+      `SELECT COUNT(1) AS count FROM FTALLER.dbo.PAR_UBICACION_PRODUCTO WHERE ubicod = @ubicod`,
+      { ubicod: normCode }
+    );
+    if (checkMap.recordset[0] && checkMap.recordset[0].count > 0) {
+      throw new Error('No se puede borrar la Ubicación porque está referenciada en la Configuración de Ubicaciones por Producto.');
+    }
+  }
+
+  // 2. Physical delete
   await db.query(
-    `UPDATE FTALLER.dbo.PAR_UBICACION 
-     SET ubistd = 0, 
-         codusuanu = @actor, 
-         fecusuanu = GETDATE() 
-     WHERE empcod = '01' AND ubicod = @ubicod`,
-    { ubicod: ubicod.trim(), actor }
+    `DELETE FROM FTALLER.dbo.PAR_UBICACION WHERE empcod = '01' AND ubicod = @ubicod`,
+    { ubicod: normCode }
   );
   return true;
 }
@@ -255,6 +290,52 @@ async function eliminarUbicacionProducto(procod, ubicod) {
   return true;
 }
 
+async function obtenerNextCodeUnidad() {
+  const res = await db.query(
+    `SELECT RIGHT('000' + CAST(COALESCE(MAX(CAST(unicod AS INT)), 0) + 1 AS VARCHAR(3)), 3) AS nextCode
+     FROM FTALLER.dbo.PAR_UNIDAD 
+     WHERE ISNUMERIC(unicod) = 1`
+  );
+  const nextVal = res.recordset[0] ? res.recordset[0].nextCode : null;
+  return nextVal || '001';
+}
+
+async function cambiarEstadoUnidad(unicod, estado, actor) {
+  const unistd = estado ? 1 : 0;
+  await db.query(
+    `UPDATE FTALLER.dbo.PAR_UNIDAD 
+     SET unistd = @unistd, 
+         codusumod = @actor, 
+         fecusumod = GETDATE()
+     WHERE empcod = '01' AND unicod = @unicod`,
+    { unicod: unicod.trim(), unistd, actor }
+  );
+  return true;
+}
+
+async function obtenerNextCodeUbicacion() {
+  const res = await db.query(
+    `SELECT RIGHT('00000' + CAST(COALESCE(MAX(CAST(ubicod AS INT)), 0) + 1 AS VARCHAR(5)), 5) AS nextCode
+     FROM FTALLER.dbo.PAR_UBICACION 
+     WHERE ISNUMERIC(ubicod) = 1`
+  );
+  const nextVal = res.recordset[0] ? res.recordset[0].nextCode : null;
+  return nextVal || '00001';
+}
+
+async function cambiarEstadoUbicacion(ubicod, estado, actor) {
+  const ubistd = estado ? 1 : 0;
+  await db.query(
+    `UPDATE FTALLER.dbo.PAR_UBICACION 
+     SET ubistd = @ubistd, 
+         codusumod = @actor, 
+         fecusumod = GETDATE()
+     WHERE empcod = '01' AND ubicod = @ubicod`,
+    { ubicod: ubicod.trim(), ubistd, actor }
+  );
+  return true;
+}
+
 module.exports = {
   listarUnidades,
   crearUnidad,
@@ -267,5 +348,9 @@ module.exports = {
   listarUbicacionesProducto,
   crearUbicacionProducto,
   editarUbicacionProducto,
-  eliminarUbicacionProducto
+  eliminarUbicacionProducto,
+  obtenerNextCodeUnidad,
+  cambiarEstadoUnidad,
+  obtenerNextCodeUbicacion,
+  cambiarEstadoUbicacion
 };

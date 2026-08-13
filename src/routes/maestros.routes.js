@@ -26,14 +26,18 @@ router.get('/maestros/ubicaciones-producto', requireAuth, requireAdmin, maestros
 
 // API Unidades
 router.get('/api/maestros/unidades', requireAuth, requireAdmin, maestrosController.apiListarUnidades);
+router.get('/api/maestros/unidades/next-code', requireAuth, requireAdmin, maestrosController.apiObtenerNextCodeUnidad);
 router.post('/api/maestros/unidades', requireAuth, requireAdmin, maestrosController.apiCrearUnidad);
 router.put('/api/maestros/unidades/:unicod', requireAuth, requireAdmin, maestrosController.apiEditarUnidad);
+router.patch('/api/maestros/unidades/:unicod/status', requireAuth, requireAdmin, maestrosController.apiCambiarEstadoUnidad);
 router.delete('/api/maestros/unidades/:unicod', requireAuth, requireAdmin, maestrosController.apiEliminarUnidad);
 
 // API Ubicaciones
 router.get('/api/maestros/ubicaciones', requireAuth, requireAdmin, maestrosController.apiListarUbicaciones);
+router.get('/api/maestros/ubicaciones/next-code', requireAuth, requireAdmin, maestrosController.apiObtenerNextCodeUbicacion);
 router.post('/api/maestros/ubicaciones', requireAuth, requireAdmin, maestrosController.apiCrearUbicacion);
 router.put('/api/maestros/ubicaciones/:ubicod', requireAuth, requireAdmin, maestrosController.apiEditarUbicacion);
+router.patch('/api/maestros/ubicaciones/:ubicod/status', requireAuth, requireAdmin, maestrosController.apiCambiarEstadoUbicacion);
 router.delete('/api/maestros/ubicaciones/:ubicod', requireAuth, requireAdmin, maestrosController.apiEliminarUbicacion);
 
 // API Ubicaciones por Producto

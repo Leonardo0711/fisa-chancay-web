@@ -3,6 +3,7 @@
   'use strict';
 
   let currentKey = null; // Object { procod, ubicod } when editing, null when creating new
+  let originalValues = {};
 
   const fProcod = document.getElementById('f-procod');
   const fUbicod = document.getElementById('f-ubicod');
@@ -33,6 +34,14 @@
   if (btnSave) btnSave.addEventListener('click', saveRecord);
   if (btnDelete) btnDelete.addEventListener('click', deleteRecord);
   if (btnCancel) btnCancel.addEventListener('click', resetForm);
+
+  // Bind changes check
+  [fProcod, fUbicod, fCantidad, fUnicodCant, fValorUnitario, fUnicodVu, fTarifa].forEach(input => {
+    if (input) {
+      input.addEventListener('input', checkForChanges);
+      input.addEventListener('change', checkForChanges);
+    }
+  });
 
   if (btnBuscarProducto) btnBuscarProducto.addEventListener('click', openProdModal);
   if (btnCloseModalProd) btnCloseModalProd.addEventListener('click', closeProdModal);
@@ -139,6 +148,17 @@
     fUnicodVu.value = item.unicod_vu || '';
     fTarifa.value = item.tarifa !== null ? item.tarifa : '';
 
+    // Cache original values
+    originalValues = {
+      procod: item.procod,
+      ubicod: item.ubicod,
+      cantidad: String(item.cantidad !== null ? item.cantidad : ''),
+      unicod_cant: item.unicod_cant || '',
+      valor_unitario: String(item.valor_unitario !== null ? item.valor_unitario : ''),
+      unicod_vu: item.unicod_vu || '',
+      tarifa: String(item.tarifa !== null ? item.tarifa : '')
+    };
+
     // Toggle row class
     Array.from(tbody.children).forEach(tr => {
       tr.classList.remove('row-selected');
@@ -151,16 +171,34 @@
 
     hideMessage();
     btnDelete.style.display = 'block';
+    if (btnSave) btnSave.disabled = true;
+  }
+
+  function checkForChanges() {
+    if (!currentKey) {
+      btnSave.disabled = false;
+      return;
+    }
+    const hasChanges = fProcod.value !== originalValues.procod ||
+                      fUbicod.value !== originalValues.ubicod ||
+                      fCantidad.value.trim() !== originalValues.cantidad ||
+                      fUnicodCant.value !== originalValues.unicod_cant ||
+                      fValorUnitario.value.trim() !== originalValues.valor_unitario ||
+                      fUnicodVu.value !== originalValues.unicod_vu ||
+                      fTarifa.value.trim() !== originalValues.tarifa;
+    btnSave.disabled = !hasChanges;
   }
 
   function startNew() {
     currentKey = null;
+    originalValues = {};
     form.reset();
     fProcod.disabled = false;
     btnBuscarProducto.disabled = false;
     fUbicod.disabled = false;
     fProcod.focus();
     btnDelete.style.display = 'none';
+    if (btnSave) btnSave.disabled = false;
     hideMessage();
     
     Array.from(tbody.children).forEach(tr => tr.classList.remove('row-selected'));
@@ -220,7 +258,6 @@
 
   async function deleteRecord() {
     if (!currentKey) return;
-    if (!confirm(`¿Está seguro de que desea eliminar la relación del producto ${currentKey.procod} con la ubicación ${currentKey.ubicod}?`)) return;
 
     hideMessage();
     try {
@@ -296,12 +333,18 @@
   }
 
   function showMessage(msg, type) {
-    msgArea.textContent = msg;
-    msgArea.className = `form-message-area ${type}`;
-    msgArea.style.display = 'block';
+    if (window.StatusBar) {
+      window.StatusBar.showMessage(msg, type);
+    } else {
+      msgArea.textContent = msg;
+      msgArea.className = `form-message-area ${type}`;
+      msgArea.style.display = 'block';
+    }
   }
 
   function hideMessage() {
+    const el = document.querySelector('.form-message-area');
+    if (el) el.innerHTML = '';
     msgArea.style.display = 'none';
   }
 

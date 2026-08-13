@@ -28,48 +28,49 @@
       </div>
 
       <!-- FORMULARIO + BOTONERA LATERAL -->
-      <div class="form-row" style="border-top: 1px solid var(--border-200); padding-top: var(--s3); margin-top: var(--s2);">
-        <form id="unidadForm" class="form-body" novalidate style="display: flex; flex-direction: column; gap: var(--s3);">
+      <!-- FORMULARIO + BOTONERA LATERAL -->
+      <div class="form-row" style="border-top: 1px solid var(--border-200); padding-top: var(--s2); margin-top: var(--s2);">
+        <form id="unidadForm" class="form-body" novalidate style="display: flex; flex-direction: column; gap: var(--s2);">
           <div class="form-grid-2-local">
-            <!-- Código auto-generado: hidden on create, visible read-only on edit -->
-            <div class="field" id="f-unicod-container" style="display: none;">
-              <label>Código de Unidad</label>
-              <input type="hidden" id="f-unicod" name="unicod" />
-              <div id="f-unicod-display" style="padding: 10px 14px; font-weight: bold; background: var(--surface-100); border-radius: 8px; border: 1px solid var(--border-200); height: 42px; display: flex; align-items: center;"></div>
+            <!-- Código auto-generado -->
+            <div class="field" id="f-unicod-container" style="flex: 0 0 110px;">
+              <label for="f-unicod">Código</label>
+              <input type="text" id="f-unicod" name="unicod" class="input" readonly style="font-weight: bold; background: var(--surface-100);" placeholder="Cargando..." />
             </div>
             
-            <div class="field" id="f-uninom-container" style="grid-column: span 2;">
+            <div class="field" id="f-uninom-container" style="flex: 1;">
               <label for="f-uninom">Nombre Corto *</label>
-              <input type="text" id="f-uninom" name="uninom" class="input input--upper" placeholder="EJ. BZS" required maxlength="10" />
+              <input type="text" id="f-uninom" name="uninom" class="input" placeholder="Ej. Bzs" required maxlength="10" />
             </div>
           </div>
 
           <div class="field">
             <label for="f-unides">Descripción de la Unidad *</label>
-            <input type="text" id="f-unides" name="unides" class="input" placeholder="EJ. BRAZAS" required maxlength="50" />
+            <input type="text" id="f-unides" name="unides" class="input" placeholder="Ej. Brazas" required maxlength="50" />
           </div>
 
           <div class="form-grid-2-local">
-            <div class="field" style="display: flex; align-items: center; justify-content: space-between; gap: var(--s2); background: var(--surface-50); border: 1px solid var(--border-200); border-radius: 12px; padding: 12px 16px;">
-              <label for="f-unistd" style="font-weight: 500; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0; cursor: pointer;">¿Estado Activo?</label>
+            <div class="field" style="flex: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); background: var(--surface-50); border: 1px solid var(--border-200); border-radius: 10px; padding: 8px 12px;">
+              <label for="f-unistd" style="font-weight: 500; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0; cursor: pointer;">¿Estado Activo?</label>
               <input type="checkbox" id="f-unistd" name="unistd" class="switch" checked />
             </div>
-            <div class="field" style="display: flex; align-items: center; justify-content: space-between; gap: var(--s2); background: var(--surface-50); border: 1px solid var(--border-200); border-radius: 12px; padding: 12px 16px;">
-              <label for="f-unidef" style="font-weight: 500; font-size: 0.9rem; color: var(--text-primary); margin-bottom: 0; cursor: pointer;">¿Por Defecto?</label>
+            <div class="field" style="flex: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); background: var(--surface-50); border: 1px solid var(--border-200); border-radius: 10px; padding: 8px 12px;">
+              <label for="f-unidef" style="font-weight: 500; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0; cursor: pointer;">¿Por Defecto?</label>
               <input type="checkbox" id="f-unidef" name="unidef" class="switch" />
             </div>
           </div>
           
           <!-- Area de mensajes del formulario -->
-          <div class="form-message-area" id="uni-msg-area" style="margin-top: 12px; display: none; padding: 10px; border-radius: 8px;"></div>
+          <div class="form-message-area" id="uni-msg-area" style="margin-top: 4px;"></div>
         </form>
 
         <!-- BOTONES AL LADO (VERTICAL) -->
-        <aside class="actions-side" style="display: flex; flex-direction: column; gap: var(--s2); min-width: 150px;">
-          <button class="btn btn-soft" id="btn-new">Nuevo</button>
-          <button class="btn btn--brand" id="btn-save">Guardar</button>
-          <button class="btn btn-danger" id="btn-delete" style="display: none;">Eliminar</button>
-          <button class="btn btn-ghost" id="btn-cancel">Cancelar</button>
+        <aside class="actions-side">
+          <button type="button" class="btn btn-soft" id="btn-new">NUEVO</button>
+          <button type="button" class="btn btn--brand" id="btn-save">GRABAR</button>
+          <button type="button" class="btn btn-warning" id="btn-anular" style="display: none;">ANULAR</button>
+          <button type="button" class="btn btn-danger" id="btn-delete" style="display: none;">BORRAR</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel">CERRAR</button>
         </aside>
       </div>
     </div>
@@ -79,10 +80,14 @@
 <!-- Rejilla local de 2 columnas sin min-width restrictivo en celdas -->
 <style>
 .form-grid-2-local {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+.form-grid-2-local .field {
+  margin-bottom: 0;
   min-width: 0;
+}
   width: 100%;
 }
 .form-grid-2-local .field {

@@ -8,6 +8,7 @@
   let locationsConfig = {};
   let operariosList = [];
   let selectedOperarios = new Map(); // Key: usucod, Value: operario object
+  let allLocations = [];
 
   // DOM Elements
   const btnBuscarOt = document.getElementById('btnBuscarOt');
@@ -21,6 +22,9 @@
   const alertArea = document.getElementById('alertArea');
   const btnAccept = document.getElementById('btnAccept');
   const btnCancel = document.getElementById('btnCancel');
+  
+  const radioDestajo = document.getElementById('f-tiptra-destajo');
+  const radioJornal = document.getElementById('f-tiptra-jornal');
 
   // Modal OT Elements
   const modalOt = document.getElementById('modalOt');
@@ -83,6 +87,9 @@
 
   if (btnAccept) btnAccept.addEventListener('click', handleSubmit);
   if (btnCancel) btnCancel.addEventListener('click', handleCancel);
+
+  if (radioDestajo) radioDestajo.addEventListener('change', filterLocationsByTipoTrabajo);
+  if (radioJornal) radioJornal.addEventListener('change', filterLocationsByTipoTrabajo);
 
   // Initialize
   loadUbicaciones();
@@ -194,19 +201,33 @@
 
   async function loadUbicaciones() {
     try {
-      const data = await window.AppFetch('/api/produccion/ubicaciones');
-      selectUbicacion.innerHTML = '<option value="">SELECCIONE UBICACIÓN</option>';
-      data.forEach(u => {
+      allLocations = await window.AppFetch('/api/produccion/ubicaciones');
+      filterLocationsByTipoTrabajo();
+    } catch (err) {
+      console.error('Error al cargar ubicaciones:', err.message);
+    }
+  }
+
+  function filterLocationsByTipoTrabajo() {
+    if (!selectUbicacion) return;
+    const isDestajoSelected = radioDestajo && radioDestajo.checked;
+    const targetTiptra = isDestajoSelected ? 'D' : 'J';
+
+    selectUbicacion.innerHTML = '<option value="">SELECCIONE UBICACIÓN</option>';
+    allLocations.forEach(u => {
+      if (u.tiptra === targetTiptra) {
         const opt = document.createElement('option');
         opt.value = u.ubicod;
         opt.textContent = `${u.ubicod} - ${u.ubinom}`;
         opt.dataset.tiptra = u.tiptra;
         opt.dataset.ubiuni = u.ubiuni ? '1' : '0';
         selectUbicacion.appendChild(opt);
-      });
-    } catch (err) {
-      console.error('Error al cargar ubicaciones:', err.message);
-    }
+      }
+    });
+
+    // Reset selected location & clear dependent fields
+    selectUbicacion.value = '';
+    resetUbicacionFields();
   }
 
   function handleUbicacionChange() {
@@ -307,7 +328,6 @@
   }
 
   function resetUbicacionFields() {
-    document.getElementById('f-tiptra-destajo').checked = true;
     lblUbiuni.value = '---';
     lblUnidadLbl.textContent = 'CANTIDAD / VALOR';
     lblValores.value = '---';
