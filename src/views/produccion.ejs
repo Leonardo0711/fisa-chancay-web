@@ -133,14 +133,14 @@
         
         <!-- TABLA DE OPERARIOS -->
         <div class="table-clip" style="border: 1px solid var(--border-200); border-radius: 12px; overflow-y: auto; max-height: 480px; flex: 1;">
-          <table class="table table--grid" id="operariosTable">
+          <table class="table table--grid" id="operariosTable" style="table-layout: auto; width: 100%;">
             <thead>
               <tr>
-                <th style="width: 100px;">CÓDIGO</th>
-                <th>NOMBRE</th>
-                <th style="width: 100px; text-align: center;">CANT. (#)</th>
-                <th style="width: 100px; text-align: center;">VU</th>
-                <th style="width: 60px; text-align: center;">ACC.</th>
+                <th style="width: 75px; text-align: left; padding: 10px 6px;">CÓDIGO</th>
+                <th style="min-width: 140px; text-align: left; padding: 10px 6px;">NOMBRE</th>
+                <th style="width: 75px; text-align: center; padding: 10px 4px;">CANT. (#)</th>
+                <th style="width: 85px; text-align: center; padding: 10px 4px;">VU</th>
+                <th style="width: 65px; text-align: center; padding: 10px 4px;">ACC.</th>
               </tr>
             </thead>
             <tbody id="operarios-tbody">
@@ -207,7 +207,7 @@
   <div class="modal-dialog" style="max-width: 650px;">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Asignar Operarios</h3>
+        <h3 id="modalOperarioTitle">Asignar Operarios</h3>
         <button type="button" class="modal-close" id="btnCloseModalOp">&times;</button>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: var(--s3);">

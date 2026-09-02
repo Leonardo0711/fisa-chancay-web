@@ -70,7 +70,8 @@ async function apiObtenerConfigUbicacionProducto(req, res, next) {
 
 async function apiListarOperarios(req, res, next) {
   try {
-    const list = await produccionService.listarOperarios();
+    const tiptra = (req.query.tipo || req.query.tiptra || 'D').toUpperCase();
+    const list = await produccionService.listarOperarios(tiptra);
     return res.json(list);
   } catch (err) {
     next(err);

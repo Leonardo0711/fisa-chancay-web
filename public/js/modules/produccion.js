@@ -174,11 +174,12 @@
       selectLote.innerHTML = '<option value="">SELECCIONE LOTE</option>';
       if (lotes.length > 0) {
         selectLote.disabled = false;
-        lotes.forEach(l => {
+        lotes.forEach((l, idx) => {
           const opt = document.createElement('option');
           opt.value = l.lotcod;
-          opt.textContent = l.lotcod;
-          opt.dataset.avance = l.avance;
+          const displayFraction = `${idx + 1}/${lotes.length}`;
+          opt.textContent = `${l.lotcod} - ${displayFraction}`;
+          opt.dataset.avance = l.avance || displayFraction;
           selectLote.appendChild(opt);
         });
         
@@ -196,7 +197,11 @@
       locationsConfig = await window.AppFetch(`/api/produccion/ubicaciones/producto/${encodeURIComponent(ot.procod)}`);
     } catch (err) {
       console.error('Error al cargar configuraciones de ubicación:', err.message);
+      locationsConfig = {};
     }
+
+    // Filter locations specifically for the selected product
+    filterLocationsByTipoTrabajo();
   }
 
   async function loadUbicaciones() {
@@ -213,16 +218,45 @@
     const isDestajoSelected = radioDestajo && radioDestajo.checked;
     const targetTiptra = isDestajoSelected ? 'D' : 'J';
 
+    if (!activeOt) {
+      selectUbicacion.innerHTML = '<option value="">PRIMERO SELECCIONE UNA OT</option>';
+      selectUbicacion.disabled = true;
+      resetUbicacionFields();
+      return;
+    }
+
+    selectUbicacion.disabled = false;
     selectUbicacion.innerHTML = '<option value="">SELECCIONE UBICACIÓN</option>';
-    allLocations.forEach(u => {
-      if (u.tiptra === targetTiptra) {
-        const opt = document.createElement('option');
-        opt.value = u.ubicod;
-        opt.textContent = `${u.ubicod} - ${u.ubinom}`;
-        opt.dataset.tiptra = u.tiptra;
-        opt.dataset.ubiuni = u.ubiuni ? '1' : '0';
-        selectUbicacion.appendChild(opt);
-      }
+
+    const configKeys = locationsConfig ? Object.keys(locationsConfig) : [];
+    const hasProductConfig = configKeys.length > 0;
+
+    let availableLocations = [];
+
+    if (hasProductConfig) {
+      // Filtrar ÚNICAMENTE por ubicaciones configuradas para este producto en PAR_UBICACION_PRODUCTO
+      availableLocations = allLocations.filter(u => {
+        if (u.tiptra !== targetTiptra) return false;
+        return locationsConfig[u.ubicod] !== undefined;
+      });
+    } else {
+      // Si el producto no tiene configuración específica en PAR_UBICACION_PRODUCTO, mostrar las del tipo de trabajo
+      availableLocations = allLocations.filter(u => u.tiptra === targetTiptra);
+    }
+
+    if (availableLocations.length === 0) {
+      selectUbicacion.innerHTML = '<option value="">NO HAY UBICACIONES DISPONIBLES PARA ESTE PRODUCTO</option>';
+      resetUbicacionFields();
+      return;
+    }
+
+    availableLocations.forEach(u => {
+      const opt = document.createElement('option');
+      opt.value = u.ubicod;
+      opt.textContent = `${u.ubicod} - ${u.ubinom}`;
+      opt.dataset.tiptra = u.tiptra;
+      opt.dataset.ubiuni = u.ubiuni ? '1' : '0';
+      selectUbicacion.appendChild(opt);
     });
 
     // Reset selected location & clear dependent fields
@@ -237,20 +271,32 @@
       return;
     }
 
-    const config = locationsConfig[ubicod];
+    // Buscar en configuración específica de producto o en maestro general de ubicaciones
+    const locMaster = allLocations.find(u => u.ubicod === ubicod);
+    const config = (locationsConfig && locationsConfig[ubicod]) || (locMaster ? {
+      ubicod: locMaster.ubicod,
+      ubinom: locMaster.ubinom,
+      tiptra: locMaster.tiptra,
+      ubiuni: !!locMaster.ubiuni,
+      cantidad: null,
+      unidadCant: null,
+      valorUnitario: null,
+      unidadVu: null,
+      tarifa: null
+    } : null);
+
     if (!config) {
-      showAlert('No hay configuración de ubicación para este producto', 'warning');
       resetUbicacionFields();
       return;
     }
 
     btnAgregarOperario.disabled = false;
 
-    // Apply Case logic
-    const tiptra = config.tiptra; // 'D' or 'J'
-    const ubiuni = config.ubiuni; // true or false
+    // Obtener tipo de trabajo y si es universal
+    const tiptra = config.tiptra || (locMaster ? locMaster.tiptra : 'D');
+    const ubiuni = typeof config.ubiuni === 'boolean' ? config.ubiuni : (locMaster ? !!locMaster.ubiuni : false);
 
-    // Set Trabajo Type radio button
+    // Ajustar radio button según tipo de trabajo
     if (tiptra === 'D') {
       document.getElementById('f-tiptra-destajo').checked = true;
       document.getElementById('f-tiptra-jornal').checked = false;
@@ -259,29 +305,28 @@
       document.getElementById('f-tiptra-jornal').checked = true;
     }
 
-    // Set Location indicators
+    // Mostrar siempre la etiqueta correcta: UNIVERSAL o NO UNIVERSAL
     lblUbiuni.value = ubiuni ? 'UNIVERSAL' : 'NO UNIVERSAL';
     
     const uCant = config.unidadCant || '---';
     const uVu = config.unidadVu || '---';
     lblUnidadLbl.textContent = `${uCant} / ${uVu}`;
 
-    const cantVal = config.cantidad !== null ? config.cantidad : '---';
-    const vuVal = config.valorUnitario !== null ? config.valorUnitario.toFixed(2) : '---';
+    const cantVal = config.cantidad !== null && typeof config.cantidad !== 'undefined' ? config.cantidad : '---';
+    const vuVal = config.valorUnitario !== null && typeof config.valorUnitario !== 'undefined' ? Number(config.valorUnitario).toFixed(2) : '---';
     lblValores.value = `${cantVal} / ${vuVal}`;
 
-    // Quantities inputs logic according to Case
+    // Lógica según caso de trabajo
     if (tiptra === 'D' && !ubiuni) {
       // CASE 1: Destajo y No Universal
-      // Quantities are pre-defined and locked
-      inputCantidadIngresar.value = config.cantidad || 0;
-      inputCantidadIngresar.readOnly = true;
-      inputCantidadIngresar.style.background = 'var(--surface-100)';
+      inputCantidadIngresar.value = config.cantidad !== null && typeof config.cantidad !== 'undefined' ? config.cantidad : '';
+      inputCantidadIngresar.readOnly = config.cantidad !== null && typeof config.cantidad !== 'undefined';
+      inputCantidadIngresar.style.background = inputCantidadIngresar.readOnly ? 'var(--surface-100)' : '#fff';
       badgCant.textContent = uCant;
 
-      inputVuIngresar.value = config.valorUnitario || 0;
-      inputVuIngresar.readOnly = true;
-      inputVuIngresar.style.background = 'var(--surface-100)';
+      inputVuIngresar.value = config.valorUnitario !== null && typeof config.valorUnitario !== 'undefined' ? config.valorUnitario : '';
+      inputVuIngresar.readOnly = config.valorUnitario !== null && typeof config.valorUnitario !== 'undefined';
+      inputVuIngresar.style.background = inputVuIngresar.readOnly ? 'var(--surface-100)' : '#fff';
       badgVu.textContent = uVu;
 
       document.getElementById('vuFieldGroup').style.display = 'block';
@@ -290,24 +335,22 @@
     } 
     else if (tiptra === 'D' && ubiuni) {
       // CASE 2: Destajo y Universal
-      // Quantities are editable. VU is editable but pre-filled.
       inputCantidadIngresar.value = '';
       inputCantidadIngresar.readOnly = false;
       inputCantidadIngresar.style.background = '#fff';
       badgCant.textContent = '---';
 
-      inputVuIngresar.value = config.valorUnitario || 0;
+      inputVuIngresar.value = config.valorUnitario !== null && typeof config.valorUnitario !== 'undefined' ? config.valorUnitario : '';
       inputVuIngresar.readOnly = false;
       inputVuIngresar.style.background = '#fff';
       badgVu.textContent = uVu;
 
       document.getElementById('vuFieldGroup').style.display = 'block';
-      document.getElementById('loteFieldGroup').style.display = 'none'; // hidden for universal Destajo
+      document.getElementById('loteFieldGroup').style.display = 'none'; // oculto para Destajo Universal
       selectLote.required = false;
     }
     else {
       // CASE 3: Jornal
-      // Quantity is editable. VU is disabled/not-applicable.
       inputCantidadIngresar.value = '';
       inputCantidadIngresar.readOnly = false;
       inputCantidadIngresar.style.background = '#fff';
@@ -318,12 +361,12 @@
       inputVuIngresar.style.background = 'var(--surface-100)';
       badgVu.textContent = '---';
 
-      document.getElementById('vuFieldGroup').style.display = 'none'; // hidden for Jornal
-      document.getElementById('loteFieldGroup').style.display = 'none'; // hidden for Jornal
+      document.getElementById('vuFieldGroup').style.display = 'none'; // oculto para Jornal
+      document.getElementById('loteFieldGroup').style.display = 'none'; // oculto para Jornal
       selectLote.required = false;
     }
 
-    // Refresh operarios calculations
+    // Recalcular valores de operarios
     recalculateWorkerValues();
   }
 
@@ -354,10 +397,17 @@
     modalOperario.classList.add('active');
     modalOpSearch.value = '';
     
+    const isDestajo = radioDestajo && radioDestajo.checked;
+    const targetTiptra = isDestajo ? 'D' : 'J';
+    const titleEl = document.getElementById('modalOperarioTitle');
+    if (titleEl) {
+      titleEl.textContent = isDestajo ? 'Asignar Operarios (Destajo)' : 'Asignar Operarios (Jornal)';
+    }
+
     modalOpTbody.innerHTML = '<tr class="row-empty"><td colspan="4">Cargando operarios...</td></tr>';
     
     try {
-      const data = await window.AppFetch('/api/produccion/operarios');
+      const data = await window.AppFetch(`/api/produccion/operarios?tipo=${encodeURIComponent(targetTiptra)}`);
       operariosList = data;
       renderOperariosModalList();
     } catch (err) {
@@ -430,6 +480,18 @@
     recalculateWorkerValues();
   }
 
+  function formatWorkerName(fullName) {
+    if (!fullName) return '';
+    const words = fullName.trim().split(/\s+/);
+    if (words.length <= 2) {
+      return `<div style="font-weight: 700; color: var(--text-900); font-size: 0.88rem; line-height: 1.2;">${fullName}</div>`;
+    }
+    // 2 palabras arriba (Apellidos) y el resto abajo (Nombres)
+    const topWords = words.slice(0, 2).join(' ');
+    const bottomWords = words.slice(2).join(' ');
+    return `<div style="line-height: 1.25;"><span style="font-weight: 800; color: var(--brand-900); font-size: 0.88rem;">${topWords}</span><br><span style="font-size: 0.82rem; color: var(--text-700); font-weight: 600;">${bottomWords}</span></div>`;
+  }
+
   function renderSelectedOperarios() {
     operariosTbody.innerHTML = '';
 
@@ -441,16 +503,16 @@
     selectedOperarios.forEach(op => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><strong>${op.usucod}</strong></td>
-        <td>${op.usunom}</td>
-        <td style="text-align: center;">
-          <input type="number" class="input op-qty-input" data-code="${op.usucod}" min="1" value="${op.cantidad}" style="text-align: center; padding: 6px; border-radius: 8px;" />
+        <td style="font-weight: 800; color: var(--brand-900); font-size: 0.85rem; padding: 8px 6px; vertical-align: middle;">${op.usucod}</td>
+        <td style="padding: 8px 6px; white-space: normal; vertical-align: middle; min-width: 140px;">${formatWorkerName(op.usunom)}</td>
+        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
+          <input type="number" class="input op-qty-input" data-code="${op.usucod}" min="1" value="${op.cantidad}" style="width: 58px; height: 36px; text-align: center; padding: 4px 6px; font-weight: 700; font-size: 0.95rem; border-radius: 8px; border: 1.5px solid var(--border-300, #cbd5e1); display: inline-block;" />
         </td>
-        <td style="text-align: center;">
-          <input type="number" class="input op-vu-input" data-code="${op.usucod}" min="0" step="0.01" value="${op.vu.toFixed(2)}" style="text-align: center; padding: 6px; border-radius: 8px;" />
+        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
+          <input type="number" class="input op-vu-input" data-code="${op.usucod}" min="0" step="0.01" value="${op.vu > 0 ? op.vu.toFixed(2) : ''}" style="width: 70px; height: 36px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900, #0f172a); border-radius: 8px; border: 1.5px solid var(--border-300, #cbd5e1); display: inline-block;" />
         </td>
-        <td style="text-align: center;">
-          <button type="button" class="btn btn-danger btn-remove-op" data-code="${op.usucod}" style="padding: var(--s1) var(--s2); font-size: 0.8rem;">Quitar</button>
+        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
+          <button type="button" class="btn btn-danger btn-remove-op" data-code="${op.usucod}" style="padding: 6px 10px; font-size: 0.8rem; border-radius: 8px;">Quitar</button>
         </td>
       `;
 
@@ -667,10 +729,10 @@
     selectedOperarios.clear();
 
     inputOt.value = '';
-    selectUbicacion.value = '';
-    selectUbicacion.disabled = true;
+    filterLocationsByTipoTrabajo();
     selectLote.innerHTML = '<option value="">SELECCIONE LOTE</option>';
     selectLote.disabled = true;
+    lblLoteProgress.textContent = '---';
     
     lblProcod.textContent = '---';
     lblPronom.textContent = '---';

@@ -139,16 +139,19 @@ async function obtenerConfigUbicacionProducto(procod) {
 }
 
 /**
- * Lists workers from VIEW_PRD_TALLER_TRABAJADORES view in eSolver database (.222).
+ * Lists workers from VIEW_PRD_TALLER_TRABAJADORES_D or VIEW_PRD_TALLER_TRABAJADORES_J view in eSolver database (.222).
  */
-async function listarOperarios() {
+async function listarOperarios(tiptra = 'D') {
+  const isJornal = String(tiptra).toUpperCase() === 'J';
+  const viewName = isJornal ? 'VIEW_PRD_TALLER_TRABAJADORES_J' : 'VIEW_PRD_TALLER_TRABAJADORES_D';
+
   const res = await dbEsolver.query(
     `SELECT 
       RTRIM(tracod) AS tracod, 
       RTRIM(traraz) AS traraz, 
       RTRIM(ctracod) AS ctracod, 
       RTRIM(ctranom) AS ctranom 
-     FROM VIEW_PRD_TALLER_TRABAJADORES 
+     FROM ${viewName} 
      ORDER BY traraz`
   );
 

@@ -65,10 +65,10 @@ async function obtenerDetallesOt(otcod) {
 async function obtenerLotesOt(otcod) {
   const lotes = await produccionDal.obtenerLotesOt(otcod);
   
-  // Return lotes with dynamic progress details (e.g. 4/12)
+  const totalLotes = lotes.length;
   return lotes.map((l, index) => ({
     lotcod: l.lotcod,
-    avance: `${index + 1}/${lotes.length + 3}` // Mocking progress indicator e.g. 4/12
+    avance: `${index + 1}/${totalLotes}`
   }));
 }
 
@@ -97,15 +97,14 @@ async function obtenerConfigUbicacionProducto(procod) {
       return configMap;
     }
   } catch (err) {
-    console.error('Error fetching real product-location configurations, using mock fallback:', err.message);
+    console.error('Error fetching real product-location configurations:', err.message);
   }
   
-  // Fallbacks to mock mapping if table does not exist or has no entries for the product
-  return MOCK_UBICACIONES_PRODUCTO;
+  return {};
 }
 
-async function listarOperarios() {
-  return produccionDal.listarOperarios();
+async function listarOperarios(tiptra = 'D') {
+  return produccionDal.listarOperarios(tiptra);
 }
 
 async function registrarProduccion(data, actor) {
