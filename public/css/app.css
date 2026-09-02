@@ -71,9 +71,20 @@ label{ display:block; font-weight:700; margin-bottom:6px; color:var(--text-700);
   border-radius:12px; padding:12px 14px; font-size:16px;
   outline:none; transition:border-color .15s ease, box-shadow .15s ease;
 }
-.input:focus{ border-color: var(--brand-400); box-shadow: 0 0 0 3px var(--brand-50); }
 /* Input que se muestra en mayúsculas */
 .input--upper { text-transform: uppercase; letter-spacing: .2px; }
+
+/* Ocultar flechitas (spinners) en inputs de tipo number */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+input[type=number] { 
+  -moz-appearance: textfield; 
+  appearance: textfield;
+}
+
 .field{ margin-bottom:14px; }
 .hint{ color:var(--muted); font-size:.92rem; }
 
