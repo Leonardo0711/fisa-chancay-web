@@ -94,6 +94,25 @@
   // Initialize
   loadUbicaciones();
 
+  // --- Helper Functions ---
+
+  function getCurrentLocationConfig() {
+    const ubicod = selectUbicacion ? selectUbicacion.value : null;
+    if (!ubicod) return null;
+    const locMaster = allLocations.find(u => u.ubicod === ubicod);
+    return (locationsConfig && locationsConfig[ubicod]) || (locMaster ? {
+      ubicod: locMaster.ubicod,
+      ubinom: locMaster.ubinom,
+      tiptra: locMaster.tiptra,
+      ubiuni: !!locMaster.ubiuni,
+      cantidad: null,
+      unidadCant: null,
+      valorUnitario: null,
+      unidadVu: null,
+      tarifa: null
+    } : null);
+  }
+
   // --- Functions ---
 
   function openOtModal() {
@@ -271,20 +290,7 @@
       return;
     }
 
-    // Buscar en configuración específica de producto o en maestro general de ubicaciones
-    const locMaster = allLocations.find(u => u.ubicod === ubicod);
-    const config = (locationsConfig && locationsConfig[ubicod]) || (locMaster ? {
-      ubicod: locMaster.ubicod,
-      ubinom: locMaster.ubinom,
-      tiptra: locMaster.tiptra,
-      ubiuni: !!locMaster.ubiuni,
-      cantidad: null,
-      unidadCant: null,
-      valorUnitario: null,
-      unidadVu: null,
-      tarifa: null
-    } : null);
-
+    const config = getCurrentLocationConfig();
     if (!config) {
       resetUbicacionFields();
       return;
@@ -293,8 +299,8 @@
     btnAgregarOperario.disabled = false;
 
     // Obtener tipo de trabajo y si es universal
-    const tiptra = config.tiptra || (locMaster ? locMaster.tiptra : 'D');
-    const ubiuni = typeof config.ubiuni === 'boolean' ? config.ubiuni : (locMaster ? !!locMaster.ubiuni : false);
+    const tiptra = config.tiptra || 'D';
+    const ubiuni = typeof config.ubiuni === 'boolean' ? config.ubiuni : false;
 
     // Ajustar radio button según tipo de trabajo
     if (tiptra === 'D') {
@@ -467,7 +473,7 @@
             usucod: opObj.usucod,
             usunom: opObj.usunom,
             cantidad: 1, // Default quantity
-            vu: 0 // Will be recalculated
+            vu: 0 // Will be calculated immediately
           });
         }
       } else {
@@ -502,14 +508,16 @@
 
     selectedOperarios.forEach(op => {
       const tr = document.createElement('tr');
+      const formattedVu = op.vu > 0 ? (Number.isInteger(op.vu) ? op.vu : parseFloat(op.vu.toFixed(4))) : '';
+      
       tr.innerHTML = `
         <td style="font-weight: 800; color: var(--brand-900); font-size: 0.85rem; padding: 8px 6px; vertical-align: middle;">${op.usucod}</td>
         <td style="padding: 8px 6px; white-space: normal; vertical-align: middle; min-width: 140px;">${formatWorkerName(op.usunom)}</td>
         <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
-          <input type="number" class="input op-qty-input" data-code="${op.usucod}" min="1" value="${op.cantidad}" style="width: 58px; height: 36px; text-align: center; padding: 4px 6px; font-weight: 700; font-size: 0.95rem; border-radius: 8px; border: 1.5px solid var(--border-300, #cbd5e1); display: inline-block;" />
+          <input type="number" class="input op-qty-input" data-code="${op.usucod}" min="1" value="${op.cantidad || 1}" style="width: 58px; height: 36px; text-align: center; padding: 4px 6px; font-weight: 700; font-size: 0.95rem; border-radius: 8px; border: 1.5px solid var(--border-300, #cbd5e1); display: inline-block;" />
         </td>
         <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
-          <input type="number" class="input op-vu-input" data-code="${op.usucod}" min="0" step="0.01" value="${op.vu > 0 ? op.vu.toFixed(2) : ''}" style="width: 70px; height: 36px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900, #0f172a); border-radius: 8px; border: 1.5px solid var(--border-300, #cbd5e1); display: inline-block;" />
+          <input type="number" class="input op-vu-input" data-code="${op.usucod}" min="0" step="0.0001" value="${formattedVu}" style="width: 70px; height: 36px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900, #0f172a); border-radius: 8px; border: 1.5px solid var(--border-300, #cbd5e1); display: inline-block;" />
         </td>
         <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
           <button type="button" class="btn btn-danger btn-remove-op" data-code="${op.usucod}" style="padding: 6px 10px; font-size: 0.8rem; border-radius: 8px;">Quitar</button>
@@ -541,32 +549,29 @@
     });
 
     // Check case to toggle VU visibility/editability in table
-    const config = locationsConfig[selectUbicacion.value];
-    if (config) {
-      const isJornal = config.tiptra === 'J';
-      const vuInputs = operariosTbody.querySelectorAll('.op-vu-input');
-      vuInputs.forEach(inp => {
-        if (isJornal) {
-          inp.value = '';
-          inp.disabled = true;
-          inp.style.background = 'var(--surface-100)';
-        } else {
-          inp.disabled = false;
-          inp.style.background = '#fff';
-        }
-      });
-    }
+    const config = getCurrentLocationConfig();
+    const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
+    const vuInputs = operariosTbody.querySelectorAll('.op-vu-input');
+    vuInputs.forEach(inp => {
+      if (isJornal) {
+        inp.value = '';
+        inp.disabled = true;
+        inp.style.background = 'var(--surface-100)';
+      } else {
+        inp.disabled = false;
+        inp.style.background = '#fff';
+      }
+    });
   }
 
   /**
    * Recalculates unit values proportionally based on duplicate seams/quantities entered.
-   * Note rule: "Si selecciono en Cantidad # una misma Costura, el VU debe dividirse entre la cantidad de Operarios que la contienen. El campo VU se puede Editar."
+   * Rule FISA: "Si selecciono en Cantidad # una misma Costura, el VU debe dividirse entre la cantidad de Operarios que la contienen. El campo VU se puede Editar."
    */
   function recalculateWorkerValues() {
-    const config = locationsConfig[selectUbicacion.value];
-    if (!config) return;
+    const config = getCurrentLocationConfig();
+    const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
 
-    const isJornal = config.tiptra === 'J';
     if (isJornal) {
       selectedOperarios.forEach(op => {
         op.vu = 0;
@@ -575,22 +580,32 @@
       return;
     }
 
-    const totalVu = parseFloat(inputVuIngresar.value || config.valorUnitario || 0);
+    // VU total de la cabecera
+    let headerVuRaw = inputVuIngresar ? inputVuIngresar.value.trim() : '';
+    let totalVu = 0;
+    if (headerVuRaw !== '') {
+      totalVu = parseFloat(headerVuRaw) || 0;
+    } else if (config && config.valorUnitario !== null && config.valorUnitario !== undefined) {
+      totalVu = parseFloat(config.valorUnitario) || 0;
+    }
 
-    // Count occurrences of quantity '#' values
+    if (selectedOperarios.size === 0) return;
+
+    // Contar ocurrencias de cada número de cantidad / costura (#)
     const qtyCounts = {};
     selectedOperarios.forEach(op => {
-      const qty = op.cantidad;
+      const qty = op.cantidad || 1;
       qtyCounts[qty] = (qtyCounts[qty] || 0) + 1;
     });
 
-    // Recalculate VU
+    // Recalcular VU para cada operario según las costuras compartidas
     selectedOperarios.forEach(op => {
-      const qty = op.cantidad;
+      const qty = op.cantidad || 1;
       const count = qtyCounts[qty] || 1;
       
-      // VU is divided by the number of operarios sharing it
-      op.vu = totalVu / count;
+      // VU se divide entre la cantidad de operarios que comparten la misma costura/cantidad
+      // Si solo hay 1 operario, recibe el totalVu completo
+      op.vu = totalVu > 0 ? (totalVu / count) : 0;
     });
 
     updateVuFieldsInTable();
@@ -600,7 +615,11 @@
     selectedOperarios.forEach(op => {
       const input = operariosTbody.querySelector(`.op-vu-input[data-code="${op.usucod}"]`);
       if (input) {
-        input.value = op.vu > 0 ? op.vu.toFixed(2) : '';
+        if (op.vu > 0) {
+          input.value = Number.isInteger(op.vu) ? op.vu : parseFloat(op.vu.toFixed(4));
+        } else {
+          input.value = '';
+        }
       }
     });
   }
@@ -634,9 +653,9 @@
       return;
     }
 
-    const config = locationsConfig[ubicod];
-    const tiptra = config.tiptra;
-    const ubiuni = config.ubiuni;
+    const config = getCurrentLocationConfig();
+    const isDestajo = radioDestajo && radioDestajo.checked;
+    const tiptra = isDestajo ? 'D' : 'J';
 
     // Lote checks
     const loteVal = selectLote.value;
@@ -697,11 +716,10 @@
     try {
       const locMaster = allLocations.find(u => u.ubicod === ubicod);
       const unicod_cant = (config && config.unicod_cant) || (locMaster && locMaster.unicod) || '001';
-      const isDestajo = radioDestajo && radioDestajo.checked;
 
       const payload = {
         otcod: activeOt,
-        tiptra: isDestajo ? 'D' : 'J',
+        tiptra,
         ubicod,
         lote: loteVal || '',
         lotcod: loteVal || '',
