@@ -163,11 +163,40 @@ async function listarOperarios(tiptra = 'D') {
   }));
 }
 
+/**
+ * Executes stored procedure PA_TAL_CONTROL_PRODUCCION in FTALLER database.
+ * @param {Object} params
+ */
+async function ejecutarControlProduccion(params) {
+  const pool = await db.connect();
+  const req = pool.request();
+
+  req.input('empcod', db.sql.Char(2), params.empcod || '01');
+  req.input('otcod', db.sql.Char(25), (params.otcod || '').trim());
+  req.input('tiptra', db.sql.Char(1), (params.tiptra || 'D').trim());
+  req.input('ubicod', db.sql.Char(5), (params.ubicod || '').trim());
+  req.input('lotcod', db.sql.Char(50), params.lotcod ? params.lotcod.trim() : '');
+  req.input('cantidad', db.sql.Decimal(18, 4), Number(params.cantidad || 0));
+  req.input('unicod_cant', db.sql.Char(3), params.unicod_cant ? params.unicod_cant.trim() : '001');
+  req.input('valor_unitario', db.sql.Decimal(18, 4), Number(params.valor_unitario || 0));
+
+  req.input('sTraCod', db.sql.VarChar(db.sql.MAX), params.sTraCod || '');
+  req.input('sCantidad', db.sql.VarChar(db.sql.MAX), params.sCantidad || '');
+  req.input('sValor_Unitario', db.sql.VarChar(db.sql.MAX), params.sValor_Unitario || '');
+
+  req.input('usucod', db.sql.Char(20), (params.usucod || 'ADMIN').trim());
+  req.input('sTipOpe', db.sql.Char(1), (params.sTipOpe || 'I').trim());
+
+  return req.execute('dbo.PA_TAL_CONTROL_PRODUCCION');
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
   obtenerLotesOt,
   listarUbicaciones,
   obtenerConfigUbicacionProducto,
-  listarOperarios
+  listarOperarios,
+  ejecutarControlProduccion
 };
+

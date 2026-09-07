@@ -80,10 +80,20 @@ async function apiListarOperarios(req, res, next) {
 
 async function apiRegistrarProduccion(req, res, next) {
   try {
-    const result = await produccionService.registrarProduccion(req.body, req.user.usucod);
-    return res.json({ success: true, message: 'EL REGISTRO FUE INGRESADO CORRECTAMENTE', nrocorrelativo: result.nrocorrelativo });
+    const userContext = {
+      usucod: req.user ? req.user.usucod : 'ADMIN',
+      empcod: req.user ? (req.user.empcod || '01') : '01',
+      talcod: req.user ? (req.user.talcod || '01') : '01'
+    };
+    const result = await produccionService.registrarProduccion(req.body, userContext);
+    return res.json({ 
+      success: true, 
+      message: 'EL REGISTRO FUE INGRESADO CORRECTAMENTE',
+      data: result.data
+    });
   } catch (err) {
     err.userMessage = err.message;
+    res.status(400);
     next(err);
   }
 }

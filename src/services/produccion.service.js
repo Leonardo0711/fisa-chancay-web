@@ -107,71 +107,84 @@ async function listarOperarios(tiptra = 'D') {
   return produccionDal.listarOperarios(tiptra);
 }
 
-async function registrarProduccion(data, actor) {
-  const { otcod, ubicod, lote, cantidadIngresar, vuIngresar, workers } = data;
+async function registrarProduccion(data, userContext) {
+  const {
+    empcod,
+    otcod,
+    tiptra,
+    ubicod,
+    lote,
+    lotcod,
+    cantidadIngresar,
+    cantidad,
+    unicod_cant,
+    vuIngresar,
+    valor_unitario,
+    workers,
+    sTraCod,
+    sCantidad,
+    sValor_Unitario,
+    sTipOpe
+  } = data;
 
-  if (!otcod || !ubicod) {
-    throw new Error('DATOS REQUERIDOS FALTANTES: SE REQUIERE OT Y UBICACIÓN');
+  if (!otcod) {
+    throw new Error('DATOS REQUERIDOS FALTANTES: SE REQUIERE LA ORDEN DE TRABAJO (OT)');
+  }
+  if (!ubicod) {
+    throw new Error('DATOS REQUERIDOS FALTANTES: SE REQUIERE LA UBICACIÓN');
   }
 
-  if (!workers || !Array.isArray(workers) || workers.length === 0) {
+  const finalTiptra = (tiptra || 'D').toUpperCase();
+  const finalLotcod = (lotcod || lote || '').trim();
+  const finalCantidad = parseFloat(cantidadIngresar || cantidad || 0);
+  const finalVu = finalTiptra === 'J' ? 0 : parseFloat(vuIngresar || valor_unitario || 0);
+
+  // Armar cadenas de detalle con palotes '|'
+  let finalTraCod = sTraCod || '';
+  let finalCantStr = sCantidad || '';
+  let finalVuStr = sValor_Unitario || '';
+
+  if (Array.isArray(workers) && workers.length > 0) {
+    finalTraCod = workers.map(w => String(w.usucod || w.tracod || '').trim()).join('|');
+    finalCantStr = workers.map(w => String(w.cantidad || 0).trim()).join('|');
+    finalVuStr = workers.map(w => String(finalTiptra === 'J' ? '0' : Number(w.vu || 0).toFixed(2)).trim()).join('|');
+  }
+
+  if (!finalTraCod) {
     throw new Error('SE REQUIERE ASIGNAR AL MENOS UN OPERARIO AL REGISTRO');
   }
 
-  // 1. Business Logic Validations
-  const totalCantidad = parseFloat(cantidadIngresar || 0);
-  const totalVu = parseFloat(vuIngresar || 0);
+  // Identificar usuario y empresa activa
+  const actorUsucod = typeof userContext === 'object' ? userContext.usucod : (userContext || 'ADMIN');
+  const actorEmpcod = typeof userContext === 'object' ? (userContext.empcod || empcod || '01') : (empcod || '01');
 
-  let sumQuantities = 0;
-  let sumVus = 0;
-
-  workers.forEach(w => {
-    sumQuantities += parseFloat(w.cantidad || 0);
-    sumVus += parseFloat(w.vu || 0);
-  });
-
-  // Verify worker quantity limits
-  if (totalCantidad > 0 && sumQuantities > totalCantidad) {
-    throw new Error(`LA SUMA DE CANTIDADES DE OPERARIOS (${sumQuantities}) SUPERA LA CANTIDAD CONFIGURADA (${totalCantidad})`);
-  }
-
-  // Verify VU limits
-  if (totalVu > 0 && sumVus > totalVu) {
-    throw new Error(`LA SUMA DE VALORES UNITARIOS DE OPERARIOS (${sumVus}) SUPERA EL VALOR UNITARIO CONFIGURADO (${totalVu})`);
-  }
-
-  // 2. Generate a unique correlated operation number
-  const nrocorrelativo = crypto.randomUUID().toUpperCase();
-
-  // 3. Write data to log file (Transaction log on file to avoid database table creations)
-  const logPayload = {
-    nrocorrelativo,
-    actor,
-    timestamp: new Date().toISOString(),
-    data: {
-      otcod,
-      ubicod,
-      lote: lote || null,
-      cantidadIngresar: totalCantidad,
-      vuIngresar: totalVu,
-      workers
-    }
+  // Ejecutar el Stored Procedure PA_TAL_CONTROL_PRODUCCION en FTALLER
+  const spParams = {
+    empcod: actorEmpcod,
+    otcod: otcod.trim(),
+    tiptra: finalTiptra,
+    ubicod: ubicod.trim(),
+    lotcod: finalLotcod,
+    cantidad: finalCantidad,
+    unicod_cant: unicod_cant || '001',
+    valor_unitario: finalVu,
+    sTraCod: finalTraCod,
+    sCantidad: finalCantStr,
+    sValor_Unitario: finalVuStr,
+    usucod: actorUsucod,
+    sTipOpe: sTipOpe || 'I'
   };
 
-  const logsDir = 'C:\\FISA\\industrial-platform\\logs';
-  if (!fs.existsSync(logsDir)) {
-    fs.mkdirSync(logsDir, { recursive: true });
+  try {
+    const result = await produccionDal.ejecutarControlProduccion(spParams);
+    return {
+      success: true,
+      data: result.recordset
+    };
+  } catch (err) {
+    console.error('Error al ejecutar PA_TAL_CONTROL_PRODUCCION:', err.message);
+    throw err;
   }
-
-  const logFile = path.join(logsDir, 'production-records.json');
-  fs.appendFileSync(logFile, JSON.stringify(logPayload) + '\n', 'utf8');
-
-  console.log(`[ProduccionService] Record successfully written to log file. Correlative: ${nrocorrelativo}`);
-
-  return {
-    success: true,
-    nrocorrelativo
-  };
 }
 
 module.exports = {

@@ -693,14 +693,21 @@
     }
 
     // Call backend API REST
-    showAlert('Guardando registro...', 'info');
+    showAlert('Guardando registro en base de datos...', 'info');
     try {
+      const locMaster = allLocations.find(u => u.ubicod === ubicod);
+      const unicod_cant = (config && config.unicod_cant) || (locMaster && locMaster.unicod) || '001';
+      const isDestajo = radioDestajo && radioDestajo.checked;
+
       const payload = {
         otcod: activeOt,
+        tiptra: isDestajo ? 'D' : 'J',
         ubicod,
-        lote: loteVal || null,
+        lote: loteVal || '',
+        lotcod: loteVal || '',
         cantidadIngresar,
-        vuIngresar: tiptra === 'J' ? 0 : vuIngresar,
+        unicod_cant,
+        vuIngresar: isDestajo ? vuIngresar : 0,
         workers: workersList
       };
 
