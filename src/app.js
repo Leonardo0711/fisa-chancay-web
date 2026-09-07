@@ -28,9 +28,12 @@ app.use(helmet({
   }
 }));
 
+// 1. Trust Proxy (Crucial for IIS / Reverse Proxy support)
+app.enable('trust proxy');
+
 // 2. Strict CORS Configuration
 app.use(cors({
-  origin: env.HOST === '127.0.0.1' ? `http://127.0.0.1:${env.PORT}` : true,
+  origin: true,
   credentials: true
 }));
 
@@ -46,13 +49,13 @@ app.use(cookieParser(env.SESSION_SECRET));
 app.use(session({
   name: env.COOKIE_NAME,
   secret: env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: false,
+  resave: true,
+  saveUninitialized: true,
   store: new SqlSessionStore(),
   cookie: {
     httpOnly: true,
     sameSite: 'lax',
-    secure: env.APP_ENV === 'production', // true for production, false for staging
+    secure: false, // Permite HTTP intranet / reverse proxy IIS
     maxAge: env.SESSION_TTL_HOURS * 60 * 60 * 1000
   }
 }));
