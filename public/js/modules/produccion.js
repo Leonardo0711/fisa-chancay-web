@@ -716,13 +716,19 @@
         body: JSON.stringify(payload)
       });
 
-      showAlert(res.message || 'EL REGISTRO FUE INGRESADO CORRECTAMENTE', 'success');
+      // Limpiar inmediatamente todo el formulario
+      handleCancel();
+
+      // Mostrar mensaje solicitado
+      showAlert('Grabado Correctamente', 'success');
+      if (window.StatusBar && typeof window.StatusBar.showMessage === 'function') {
+        window.StatusBar.showMessage('Grabado Correctamente', 'success');
+      }
       
-      // Clear form on success
+      // Ocultar mensaje después de 4 segundos
       setTimeout(() => {
-        handleCancel();
         hideAlert();
-      }, 2500);
+      }, 4000);
 
     } catch (err) {
       showAlert(err.message, 'error');
