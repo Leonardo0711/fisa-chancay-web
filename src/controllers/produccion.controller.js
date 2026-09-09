@@ -98,6 +98,46 @@ async function apiRegistrarProduccion(req, res, next) {
   }
 }
 
+async function apiListarRegistrosProduccion(req, res, next) {
+  try {
+    const { q, limite } = req.query;
+    const list = await produccionService.listarRegistros({
+      busqueda: q,
+      limite: limite ? parseInt(limite, 10) : 100
+    });
+    return res.json(list);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiObtenerDetalleRegistro(req, res, next) {
+  try {
+    const { cpcod } = req.params;
+    if (!cpcod) {
+      return res.status(400).json({ error: 'NÚMERO DE CONTROL REQUERIDO' });
+    }
+    const details = await produccionService.obtenerDetalleRegistro(cpcod);
+    return res.json(details);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiExportarRegistrosProduccion(req, res, next) {
+  try {
+    const csvContent = await produccionService.generarReporteCsv();
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `Control_Produccion_Chancay_${dateStr}.csv`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(csvContent);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   renderProduccion,
   apiBuscarOts,
@@ -106,5 +146,8 @@ module.exports = {
   apiListarUbicaciones,
   apiObtenerConfigUbicacionProducto,
   apiListarOperarios,
-  apiRegistrarProduccion
+  apiRegistrarProduccion,
+  apiListarRegistrosProduccion,
+  apiObtenerDetalleRegistro,
+  apiExportarRegistrosProduccion
 };

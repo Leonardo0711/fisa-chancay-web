@@ -69,5 +69,83 @@
     </div>
 
   </div>
+
+  <!-- Sección Monitor de Control de Producción -->
+  <div class="card animate-in" style="padding: var(--s3); margin-top: var(--s2); border: 1px solid var(--border); box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+    
+    <!-- Encabezado de Sección -->
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s2); margin-bottom: var(--s2); border-bottom: 1px solid var(--border); padding-bottom: var(--s2);">
+      <div>
+        <h2 style="margin: 0 0 4px 0; font-size: 1.25rem; font-weight: 800; color: var(--brand-900); display: flex; align-items: center; gap: 8px;">
+          <span>📋</span> Seguimiento de Registros de Producción
+        </h2>
+        <p style="margin: 0; color: var(--muted); font-size: 0.88rem;">
+          Monitoreo en vivo de ingresos de producción (cabecera y desglose de operarios). Haz clic en una fila para ver el detalle.
+        </p>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1);">
+        <button id="btnExportExcel" class="btn" style="background: #107c41; color: #fff; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 4px rgba(16,124,65,0.2); border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer;">
+          <span>📊</span> Exportar a Excel
+        </button>
+        <button id="btnRefreshRegs" class="btn btn--secondary" style="font-weight: 700; display: inline-flex; align-items: center; gap: 6px; border-radius: 8px; padding: 8px 14px; cursor: pointer;">
+          <span id="refreshIcon">🔄</span> Actualizar
+        </button>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros y Búsqueda -->
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--s2); margin-bottom: var(--s2);">
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: var(--s1); flex: 1;">
+        <div style="position: relative; min-width: 260px; max-width: 400px; width: 100%;">
+          <input type="text" id="regSearchInput" placeholder="Buscar por OT, Lote, Ubicación o Usuario..." class="input" style="width: 100%; padding-left: 36px; height: 38px; border-radius: 8px; border: 1.5px solid var(--border);" />
+          <span style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: 0.5; pointer-events: none;">🔍</span>
+        </div>
+
+        <select id="regTypeFilter" class="input" style="width: 160px; height: 38px; border-radius: 8px; border: 1.5px solid var(--border);">
+          <option value="">Todos los Tipos</option>
+          <option value="D">Solo Destajo (D)</option>
+          <option value="J">Solo Jornal (J)</option>
+        </select>
+      </div>
+
+      <div>
+        <span id="regCountBadge" class="badge" style="background: var(--surface-100); color: var(--text-900); font-size: 0.85rem; padding: 6px 14px; border-radius: 20px; font-weight: 700; border: 1px solid var(--border);">
+          Cargando registros...
+        </span>
+      </div>
+    </div>
+
+    <!-- Tabla Principal de Cabeceras -->
+    <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; background: #fff;">
+      <table class="table" style="width: 100%; border-collapse: collapse; font-size: 0.88rem;" id="tableProduccionHeaders">
+        <thead>
+          <tr style="background: var(--surface-100); text-align: left; border-bottom: 2px solid var(--border);">
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900); width: 36px; text-align: center;"></th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900);">N° Control</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900);">Fecha / Hora</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900);">Orden Trabajo</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900);">Lote</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900); text-align: center;">Tipo</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900);">Ubicación</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900); text-align: right;">Cantidad</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900); text-align: right;">VU</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900); text-align: center;">Operarios</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900);">Usuario</th>
+            <th style="padding: 10px 12px; font-weight: 800; color: var(--brand-900); text-align: center;">Detalle</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyProduccionHeaders">
+          <tr>
+            <td colspan="12" style="text-align: center; padding: 28px; color: var(--muted);">
+              Cargando registros de producción...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+
 </div>
 <%- include('partials/footer') %>

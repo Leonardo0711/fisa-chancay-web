@@ -18,4 +18,10 @@ router.get('/api/produccion/ubicaciones/producto/:procod', requireAuth, requireP
 router.get('/api/produccion/operarios', requireAuth, requirePermission('PRODUCCION', 'view'), produccionController.apiListarOperarios);
 router.post('/api/produccion/registrar', requireAuth, requirePermission('PRODUCCION', 'save'), produccionController.apiRegistrarProduccion);
 
+// Monitor & Export Routes
+router.get('/api/produccion/registros', requireAuth, produccionController.apiListarRegistrosProduccion);
+router.get('/api/produccion/registros/exportar', requireAuth, produccionController.apiExportarRegistrosProduccion);
+router.get('/api/produccion/registros/:cpcod/detalle', requireAuth, produccionController.apiObtenerDetalleRegistro);
+
 module.exports = router;
+

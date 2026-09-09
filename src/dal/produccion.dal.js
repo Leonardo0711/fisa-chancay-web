@@ -190,6 +190,191 @@ async function ejecutarControlProduccion(params) {
   return req.execute('dbo.PA_TAL_CONTROL_PRODUCCION');
 }
 
+let workersCache = null;
+let workersCacheTime = 0;
+
+async function getWorkersDictionary() {
+  const now = Date.now();
+  if (workersCache && (now - workersCacheTime < 10 * 60 * 1000)) {
+    return workersCache;
+  }
+  try {
+    const poolEsolver = await dbEsolver.connect();
+    const res = await poolEsolver.request().query(`
+      SELECT RTRIM(tracod) AS tracod, RTRIM(traraz) AS traraz 
+      FROM VIEW_PRD_TALLER_TRABAJADORES_D
+      UNION
+      SELECT RTRIM(tracod) AS tracod, RTRIM(traraz) AS traraz 
+      FROM VIEW_PRD_TALLER_TRABAJADORES_J
+    `);
+    const map = {};
+    res.recordset.forEach(r => {
+      map[r.tracod] = r.traraz;
+    });
+    workersCache = map;
+    workersCacheTime = now;
+    return map;
+  } catch (err) {
+    console.error('Error cargando diccionario de trabajadores:', err.message);
+    return workersCache || {};
+  }
+}
+
+/**
+ * Lists all headers from TAL_CONTROL_PRODUCCION with location, unit and operator counts.
+ */
+async function listarRegistrosProduccion(options = {}) {
+  const pool = await db.connect();
+  const limite = parseInt(options.limite, 10) || 100;
+  const q = (options.busqueda || '').trim();
+
+  let whereClause = '';
+  const req = pool.request();
+
+  if (q) {
+    whereClause = `WHERE (
+      cp.cpcod LIKE @q OR 
+      cp.otcod LIKE @q OR 
+      cp.lotcod LIKE @q OR 
+      u.ubinom LIKE @q OR 
+      cp.codusucre LIKE @q
+    )`;
+    req.input('q', db.sql.VarChar(100), `%${q}%`);
+  }
+
+  const query = `
+    SELECT TOP (${limite})
+      RTRIM(cp.empcod) AS empcod,
+      RTRIM(cp.cpcod) AS cpcod,
+      RTRIM(cp.otcod) AS otcod,
+      RTRIM(cp.tiptra) AS tiptra,
+      RTRIM(cp.ubicod) AS ubicod,
+      ISNULL(RTRIM(u.ubinom), cp.ubicod) AS ubinom,
+      RTRIM(cp.lotcod) AS lotcod,
+      cp.cantidad,
+      RTRIM(cp.unicod_cant) AS unicod_cant,
+      ISNULL(RTRIM(un.unides), cp.unicod_cant) AS unidad,
+      cp.valor_unitario,
+      RTRIM(cp.codusucre) AS codusucre,
+      cp.fecusucre,
+      (SELECT COUNT(1) FROM TAL_CONTROL_PRODUCCION_DETALLE d WHERE d.empcod = cp.empcod AND d.cpcod = cp.cpcod) AS totalOperarios
+    FROM TAL_CONTROL_PRODUCCION cp
+    LEFT JOIN PAR_UBICACION u ON cp.empcod = u.empcod AND cp.ubicod = u.ubicod
+    LEFT JOIN PAR_UNIDAD un ON cp.empcod = un.empcod AND cp.unicod_cant = un.unicod
+    ${whereClause}
+    ORDER BY cp.fecusucre DESC, cp.cpcod DESC
+  `;
+
+  const res = await req.query(query);
+
+  return res.recordset.map(row => ({
+    empcod: row.empcod,
+    cpcod: row.cpcod,
+    otcod: row.otcod,
+    tiptra: row.tiptra,
+    tiptraDesc: row.tiptra === 'D' ? 'DESTAJO' : 'JORNAL',
+    ubicod: row.ubicod,
+    ubinom: row.ubinom,
+    lotcod: row.lotcod,
+    cantidad: Number(row.cantidad || 0),
+    unicod_cant: row.unicod_cant,
+    unidad: row.unidad || '---',
+    valor_unitario: Number(row.valor_unitario || 0),
+    codusucre: row.codusucre,
+    fecusucre: row.fecusucre,
+    totalOperarios: Number(row.totalOperarios || 0)
+  }));
+}
+
+/**
+ * Gets detail workers for a specific production control header cpcod.
+ */
+async function obtenerDetalleRegistroProduccion(cpcod) {
+  const pool = await db.connect();
+  const res = await pool.request()
+    .input('cpcod', db.sql.Char(10), String(cpcod).trim())
+    .query(`
+      SELECT 
+        RTRIM(d.empcod) AS empcod,
+        RTRIM(d.cpcod) AS cpcod,
+        d.cpnum,
+        RTRIM(d.tracod) AS tracod,
+        d.cantidad,
+        d.valor_unitario
+      FROM TAL_CONTROL_PRODUCCION_DETALLE d
+      WHERE d.cpcod = @cpcod
+      ORDER BY d.cpnum ASC
+    `);
+
+  const workerMap = await getWorkersDictionary();
+
+  return res.recordset.map(row => ({
+    empcod: row.empcod,
+    cpcod: row.cpcod,
+    cpnum: row.cpnum,
+    tracod: row.tracod,
+    traraz: workerMap[row.tracod] || row.tracod,
+    cantidad: Number(row.cantidad || 0),
+    valor_unitario: Number(row.valor_unitario || 0),
+    total: Number((row.cantidad || 0) * (row.valor_unitario || 0))
+  }));
+}
+
+/**
+ * Gets combined header and detail records for Excel export.
+ */
+async function obtenerRegistrosCompletosParaExportar() {
+  const pool = await db.connect();
+  const res = await pool.request().query(`
+    SELECT 
+      RTRIM(cp.empcod) AS empcod,
+      RTRIM(cp.cpcod) AS cpcod,
+      cp.fecusucre,
+      RTRIM(cp.otcod) AS otcod,
+      RTRIM(cp.lotcod) AS lotcod,
+      RTRIM(cp.tiptra) AS tiptra,
+      RTRIM(cp.ubicod) AS ubicod,
+      ISNULL(RTRIM(u.ubinom), cp.ubicod) AS ubinom,
+      cp.cantidad AS cantidadCabecera,
+      ISNULL(RTRIM(un.unides), cp.unicod_cant) AS unidad,
+      cp.valor_unitario AS vuCabecera,
+      RTRIM(cp.codusucre) AS codusucre,
+      d.cpnum,
+      RTRIM(d.tracod) AS tracod,
+      d.cantidad AS cantidadOperario,
+      d.valor_unitario AS vuOperario
+    FROM TAL_CONTROL_PRODUCCION cp
+    LEFT JOIN PAR_UBICACION u ON cp.empcod = u.empcod AND cp.ubicod = u.ubicod
+    LEFT JOIN PAR_UNIDAD un ON cp.empcod = un.empcod AND cp.unicod_cant = un.unicod
+    LEFT JOIN TAL_CONTROL_PRODUCCION_DETALLE d ON cp.empcod = d.empcod AND cp.cpcod = d.cpcod
+    ORDER BY cp.fecusucre DESC, cp.cpcod DESC, d.cpnum ASC
+  `);
+
+  const workerMap = await getWorkersDictionary();
+
+  return res.recordset.map(row => ({
+    empcod: row.empcod,
+    cpcod: row.cpcod,
+    fecusucre: row.fecusucre,
+    otcod: row.otcod,
+    lotcod: row.lotcod,
+    tiptra: row.tiptra,
+    tiptraDesc: row.tiptra === 'D' ? 'DESTAJO' : 'JORNAL',
+    ubicod: row.ubicod,
+    ubinom: row.ubinom,
+    cantidadCabecera: Number(row.cantidadCabecera || 0),
+    unidad: row.unidad || '---',
+    vuCabecera: Number(row.vuCabecera || 0),
+    codusucre: row.codusucre,
+    cpnum: row.cpnum || null,
+    tracod: row.tracod || '',
+    traraz: workerMap[row.tracod] || row.tracod || '',
+    cantidadOperario: row.cantidadOperario !== null ? Number(row.cantidadOperario) : null,
+    vuOperario: row.vuOperario !== null ? Number(row.vuOperario) : null,
+    subtotal: Number((row.cantidadOperario || 0) * (row.vuOperario || 0))
+  }));
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
@@ -197,6 +382,9 @@ module.exports = {
   listarUbicaciones,
   obtenerConfigUbicacionProducto,
   listarOperarios,
-  ejecutarControlProduccion
+  ejecutarControlProduccion,
+  listarRegistrosProduccion,
+  obtenerDetalleRegistroProduccion,
+  obtenerRegistrosCompletosParaExportar
 };
 

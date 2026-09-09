@@ -187,6 +187,74 @@ async function registrarProduccion(data, userContext) {
   }
 }
 
+async function listarRegistros(options) {
+  return produccionDal.listarRegistrosProduccion(options);
+}
+
+async function obtenerDetalleRegistro(cpcod) {
+  return produccionDal.obtenerDetalleRegistroProduccion(cpcod);
+}
+
+function escapeCsvField(val) {
+  if (val === null || val === undefined) return '""';
+  const str = String(val).replace(/"/g, '""');
+  return `"${str}"`;
+}
+
+async function generarReporteCsv() {
+  const rows = await produccionDal.obtenerRegistrosCompletosParaExportar();
+
+  const headers = [
+    'N° Control',
+    'Fecha / Hora',
+    'Orden de Trabajo',
+    'Lote',
+    'Tipo de Trabajo',
+    'Código Ubicación',
+    'Ubicación',
+    'Cant. Total Cabecera',
+    'Unidad',
+    'VU Cabecera',
+    'Usuario Registro',
+    'Ítem Operario',
+    'Código Operario',
+    'Nombre del Trabajador',
+    'Cantidad Operario (#)',
+    'VU Operario',
+    'Total Operario (S/)'
+  ];
+
+  const lines = [];
+  // UTF-8 BOM
+  lines.push('\uFEFF' + headers.map(escapeCsvField).join(';'));
+
+  for (const r of rows) {
+    const fecha = r.fecusucre ? new Date(r.fecusucre).toLocaleString('es-PE', { timeZone: 'America/Lima' }) : '';
+    const line = [
+      escapeCsvField(r.cpcod),
+      escapeCsvField(fecha),
+      escapeCsvField(r.otcod),
+      escapeCsvField(r.lotcod),
+      escapeCsvField(r.tiptraDesc),
+      escapeCsvField(r.ubicod),
+      escapeCsvField(r.ubinom),
+      escapeCsvField(r.cantidadCabecera !== null ? Number(r.cantidadCabecera).toFixed(4) : ''),
+      escapeCsvField(r.unidad),
+      escapeCsvField(r.vuCabecera !== null ? Number(r.vuCabecera).toFixed(4) : ''),
+      escapeCsvField(r.codusucre),
+      escapeCsvField(r.cpnum !== null ? r.cpnum : ''),
+      escapeCsvField(r.tracod),
+      escapeCsvField(r.traraz),
+      escapeCsvField(r.cantidadOperario !== null ? Number(r.cantidadOperario).toFixed(4) : ''),
+      escapeCsvField(r.vuOperario !== null ? Number(r.vuOperario).toFixed(4) : ''),
+      escapeCsvField(r.subtotal !== null ? Number(r.subtotal).toFixed(4) : '')
+    ].join(';');
+    lines.push(line);
+  }
+
+  return lines.join('\r\n');
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
@@ -194,5 +262,8 @@ module.exports = {
   listarUbicaciones,
   obtenerConfigUbicacionProducto,
   listarOperarios,
-  registrarProduccion
+  registrarProduccion,
+  listarRegistros,
+  obtenerDetalleRegistro,
+  generarReporteCsv
 };
