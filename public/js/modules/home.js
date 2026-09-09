@@ -171,15 +171,14 @@
         <td style="padding: 10px; text-align: center;">
           ${badgeTiptra}
         </td>
-        <td style="padding: 10px; font-weight: 600; color: var(--text-900);">
-          <span style="font-size: 0.75rem; color: var(--muted); display: block; font-family: monospace;">${h.ubicod}</span>
-          ${h.ubinom}
+        <td style="padding: 10px; font-weight: 600; color: var(--text-900); white-space: nowrap;">
+          ${h.ubicod} - ${h.ubinom}
         </td>
         <td style="padding: 10px; text-align: right; font-weight: 700;">
-          ${Number(h.cantidad).toFixed(2)} <span style="font-size: 0.75rem; color: var(--muted);">${h.unidad}</span>
+          ${fmtNum(h.cantidad)} <span style="font-size: 0.75rem; color: var(--muted);">${h.unidad}</span>
         </td>
         <td style="padding: 10px; text-align: right; font-weight: 800; color: var(--brand-900);">
-          ${h.tiptra === 'D' ? 'S/ ' + Number(h.valor_unitario).toFixed(2) : '---'}
+          ${h.tiptra === 'D' ? 'S/ ' + fmtMoney(h.valor_unitario) : '---'}
         </td>
         <td style="padding: 10px; text-align: center;">
           <span class="badge" style="background: var(--surface-100); color: var(--text-800); font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color, #e2e8f0);">
@@ -232,11 +231,11 @@
       </div>
       <div>
         <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Cantidad Cabecera</span>
-        <strong>${Number(header.cantidad).toFixed(2)} ${header.unidad}</strong>
+        <strong>${fmtNum(header.cantidad)} ${header.unidad}</strong>
       </div>
       <div>
         <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">VU Cabecera</span>
-        <strong style="color: var(--brand-900);">${header.tiptra === 'D' ? 'S/ ' + Number(header.valor_unitario).toFixed(4) : '---'}</strong>
+        <strong style="color: var(--brand-900);">${header.tiptra === 'D' ? 'S/ ' + fmtMoney(header.valor_unitario) : '---'}</strong>
       </div>
       <div>
         <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Fecha / Hora</span>
@@ -315,13 +314,13 @@
             ${d.traraz || '---'}
           </td>
           <td style="text-align: center; padding: 8px; font-weight: 700;">
-            ${Number(d.cantidad).toFixed(2)}
+            ${fmtNum(d.cantidad)}
           </td>
           <td style="text-align: right; padding: 8px; color: var(--text-800);">
-            S/ ${Number(d.valor_unitario).toFixed(4)}
+            S/ ${fmtMoney(d.valor_unitario)}
           </td>
           <td style="text-align: right; padding: 8px; font-weight: 800; color: var(--brand-900);">
-            S/ ${Number(d.total).toFixed(4)}
+            S/ ${fmtMoney(d.total)}
           </td>
         </tr>
       `;
@@ -335,13 +334,13 @@
           TOTALES (${details.length} operarios):
         </td>
         <td style="padding: 10px; text-align: center; color: var(--brand-900);">
-          ${sumCant.toFixed(2)}
+          ${fmtNum(sumCant)}
         </td>
         <td style="padding: 10px; text-align: right; color: var(--muted);">
           &mdash;
         </td>
         <td style="padding: 10px; text-align: right; color: var(--brand-900); font-size: 0.95rem;">
-          S/ ${sumTotal.toFixed(4)}
+          S/ ${fmtMoney(sumTotal)}
         </td>
       </tr>
     `;
@@ -368,6 +367,24 @@
     }
 
     window.location.href = '/api/produccion/registros/exportar';
+  }
+
+  /**
+   * Formats a number smartly: integers show without decimals, decimals show up to 2.
+   * Example: 2.00 -> "2", 2.50 -> "2.5", 10.75 -> "10.75"
+   */
+  function fmtNum(val) {
+    const n = Number(val || 0);
+    if (Number.isInteger(n)) return String(n);
+    return parseFloat(n.toFixed(2)).toString();
+  }
+
+  /**
+   * Formats a monetary value to 2 decimal places.
+   * Example: 0.5 -> "0.50", 1 -> "1.00", 2.785 -> "2.79"
+   */
+  function fmtMoney(val) {
+    return Number(val || 0).toFixed(2);
   }
 
   function formatDateTime(isoString) {
