@@ -778,7 +778,132 @@
 
   let draggedWorkerCode = null;
 
+  // Touch drag variables for tablet and mobile
+  let touchActiveOp = null;
+  let touchSourceRow = null;
+  let touchGhostEl = null;
+  let touchCurrentOverRow = null;
+  let touchIsDragging = false;
+  let touchHoldTimeout = null;
+
+  function cleanupTouchDrag() {
+    if (touchHoldTimeout) {
+      clearTimeout(touchHoldTimeout);
+      touchHoldTimeout = null;
+    }
+    if (touchCurrentOverRow) {
+      touchCurrentOverRow.classList.remove('touch-over');
+      touchCurrentOverRow = null;
+    }
+    if (touchSourceRow) {
+      touchSourceRow.classList.remove('touch-dragging');
+      touchSourceRow = null;
+    }
+    if (touchGhostEl) {
+      touchGhostEl.remove();
+      touchGhostEl = null;
+    }
+    touchActiveOp = null;
+    touchIsDragging = false;
+    window.removeEventListener('touchmove', onGlobalTouchMove);
+    window.removeEventListener('touchend', onGlobalTouchEnd);
+    window.removeEventListener('touchcancel', onGlobalTouchCancel);
+  }
+
+  function startTouchDrag(op, rowEl, clientX, clientY) {
+    if (touchIsDragging) cleanupTouchDrag();
+    touchActiveOp = op;
+    touchSourceRow = rowEl;
+    touchIsDragging = true;
+    touchSourceRow.classList.add('touch-dragging');
+
+    touchGhostEl = document.createElement('div');
+    touchGhostEl.className = 'touch-drag-preview';
+    const shortName = op.usunom ? op.usunom.split(' ').slice(0, 2).join(' ') : '';
+    touchGhostEl.innerHTML = `<span style="font-size: 1.1rem; opacity: 0.9;">⋮⋮</span><span><strong>${op.usucod}</strong> &mdash; ${shortName}</span>`;
+    touchGhostEl.style.left = `${clientX}px`;
+    touchGhostEl.style.top = `${clientY}px`;
+    document.body.appendChild(touchGhostEl);
+
+    if (navigator.vibrate) {
+      try { navigator.vibrate(30); } catch (_) {}
+    }
+
+    window.addEventListener('touchmove', onGlobalTouchMove, { passive: false });
+    window.addEventListener('touchend', onGlobalTouchEnd, { passive: false });
+    window.addEventListener('touchcancel', onGlobalTouchCancel, { passive: false });
+  }
+
+  function onGlobalTouchMove(e) {
+    if (!touchIsDragging || !e.touches || e.touches.length === 0) return;
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+
+    const touch = e.touches[0];
+    if (touchGhostEl) {
+      touchGhostEl.style.left = `${touch.clientX}px`;
+      touchGhostEl.style.top = `${touch.clientY}px`;
+    }
+
+    const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetRow = elBelow ? elBelow.closest('.op-drag-row, .row-costura-empty') : null;
+
+    if (targetRow !== touchCurrentOverRow) {
+      if (touchCurrentOverRow) {
+        touchCurrentOverRow.classList.remove('touch-over');
+      }
+      touchCurrentOverRow = targetRow;
+      if (touchCurrentOverRow) {
+        touchCurrentOverRow.classList.add('touch-over');
+      }
+    }
+  }
+
+  function onGlobalTouchEnd(e) {
+    if (!touchIsDragging) {
+      cleanupTouchDrag();
+      return;
+    }
+
+    let targetRow = touchCurrentOverRow;
+    if (!targetRow && e.changedTouches && e.changedTouches.length > 0) {
+      const touch = e.changedTouches[0];
+      const elBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+      targetRow = elBelow ? elBelow.closest('.op-drag-row, .row-costura-empty') : null;
+    }
+
+    const opToMove = touchActiveOp;
+    cleanupTouchDrag();
+
+    if (targetRow && opToMove && selectedOperarios.has(opToMove.usucod)) {
+      if (targetRow.classList.contains('row-costura-empty')) {
+        const targetCostura = parseInt(targetRow.dataset.costura, 10);
+        if (!isNaN(targetCostura) && opToMove.costuraNum !== targetCostura) {
+          opToMove.costuraNum = targetCostura;
+          recalculateWorkerValues();
+          renderSelectedOperarios();
+          saveFormDraft();
+        }
+      } else if (targetRow.classList.contains('op-drag-row')) {
+        const targetCode = targetRow.dataset.code;
+        const targetCostura = parseInt(targetRow.dataset.costura, 10);
+        if (targetCode && targetCode !== opToMove.usucod && !isNaN(targetCostura)) {
+          opToMove.costuraNum = targetCostura;
+          recalculateWorkerValues();
+          renderSelectedOperarios();
+          saveFormDraft();
+        }
+      }
+    }
+  }
+
+  function onGlobalTouchCancel() {
+    cleanupTouchDrag();
+  }
+
   function renderSelectedOperarios() {
+    cleanupTouchDrag();
     operariosTbody.innerHTML = '';
 
     const prevCosturas = getSelectedLotPrevCosturas();
@@ -917,7 +1042,7 @@
           saveFormDraft();
         });
 
-        // Drag and drop listeners on row
+        // Drag and drop listeners on row (Desktop Mouse)
         tr.addEventListener('dragstart', (e) => {
           draggedWorkerCode = op.usucod;
           e.dataTransfer.setData('text/plain', op.usucod);
@@ -953,6 +1078,60 @@
             saveFormDraft();
           }
         });
+
+        // Touch Drag & Drop support (Mobile y Tablet: Touch en Handle o Long Press en fila)
+        const handle = tr.querySelector('.drag-handle');
+        if (handle) {
+          handle.addEventListener('touchstart', (e) => {
+            e.stopPropagation();
+            if (e.touches && e.touches.length === 1) {
+              const touch = e.touches[0];
+              startTouchDrag(op, tr, touch.clientX, touch.clientY);
+            }
+          }, { passive: false });
+        }
+
+        let rowTouchStartX = 0;
+        let rowTouchStartY = 0;
+        tr.addEventListener('touchstart', (e) => {
+          if (e.target.closest('input, select, button, .drag-handle')) return;
+          if (!e.touches || e.touches.length !== 1) return;
+
+          const touch = e.touches[0];
+          rowTouchStartX = touch.clientX;
+          rowTouchStartY = touch.clientY;
+
+          if (touchHoldTimeout) clearTimeout(touchHoldTimeout);
+          touchHoldTimeout = setTimeout(() => {
+            touchHoldTimeout = null;
+            startTouchDrag(op, tr, rowTouchStartX, rowTouchStartY);
+          }, 280);
+        }, { passive: true });
+
+        tr.addEventListener('touchmove', (e) => {
+          if (touchHoldTimeout && e.touches && e.touches.length > 0) {
+            const touch = e.touches[0];
+            const dist = Math.hypot(touch.clientX - rowTouchStartX, touch.clientY - rowTouchStartY);
+            if (dist > 8) {
+              clearTimeout(touchHoldTimeout);
+              touchHoldTimeout = null;
+            }
+          }
+        }, { passive: true });
+
+        tr.addEventListener('touchend', () => {
+          if (touchHoldTimeout) {
+            clearTimeout(touchHoldTimeout);
+            touchHoldTimeout = null;
+          }
+        }, { passive: true });
+
+        tr.addEventListener('touchcancel', () => {
+          if (touchHoldTimeout) {
+            clearTimeout(touchHoldTimeout);
+            touchHoldTimeout = null;
+          }
+        }, { passive: true });
 
         operariosTbody.appendChild(tr);
       });

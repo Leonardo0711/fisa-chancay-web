@@ -565,26 +565,59 @@
   }
 }
 
-/* Drag & Drop para filas de operarios por costura */
+/* Drag & Drop para filas de operarios por costura (Desktop y Touch) */
 .op-drag-row {
   transition: background 0.15s ease, transform 0.15s ease;
 }
-.op-drag-row.dragging {
+.op-drag-row.dragging,
+.op-drag-row.touch-dragging {
   opacity: 0.4;
   background: #e0f2fe !important;
 }
-.op-drag-row.drag-over {
+.op-drag-row.drag-over,
+.op-drag-row.touch-over {
   background: #dbeafe !important;
   outline: 2px dashed #2563eb;
+}
+.row-costura-empty.touch-over {
+  background: #fef3c7 !important;
+  outline: 2px dashed #d97706 !important;
+}
+.touch-drag-preview {
+  position: fixed;
+  z-index: 999999;
+  pointer-events: none;
+  background: #1e40af;
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  font-size: 0.85rem;
+  font-weight: 700;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 2px solid #60a5fa;
+  white-space: nowrap;
 }
 .drag-handle {
   cursor: grab;
   color: #94a3b8;
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   line-height: 1;
   user-select: none;
-  display: inline-block;
-  padding: 2px 4px;
+  -webkit-user-select: none;
+  touch-action: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  border-radius: 4px;
+}
+.drag-handle:hover {
+  color: var(--brand-700);
+  background: #e0f2fe;
 }
 .drag-handle:active {
   cursor: grabbing;
