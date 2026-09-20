@@ -206,10 +206,25 @@ async function listarUbicacionesProducto() {
     return [];
   }
 
+  // Ensure pronom column exists
+  await db.query(`
+    IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('FTALLER.dbo.PAR_UBICACION_PRODUCTO') AND name = 'pronom')
+    BEGIN
+      ALTER TABLE FTALLER.dbo.PAR_UBICACION_PRODUCTO ADD pronom VARCHAR(250) NULL;
+    END
+  `);
+
   const res = await db.query(
-    `SELECT RTRIM(up.procod) AS procod, RTRIM(up.ubicod) AS ubicod, RTRIM(u.ubinom) AS ubinom,
-            up.cantidad, RTRIM(up.unicod_cant) AS unicod_cant, RTRIM(un1.unides) AS unides_cant,
-            up.valor_unitario, RTRIM(up.unicod_vu) AS unicod_vu, RTRIM(un2.unides) AS unides_vu,
+    `SELECT RTRIM(up.procod) AS procod, 
+            RTRIM(ISNULL(up.pronom, '')) AS pronom,
+            RTRIM(up.ubicod) AS ubicod, 
+            RTRIM(u.ubinom) AS ubinom,
+            up.cantidad, 
+            RTRIM(up.unicod_cant) AS unicod_cant, 
+            RTRIM(un1.unides) AS unides_cant,
+            up.valor_unitario, 
+            RTRIM(up.unicod_vu) AS unicod_vu, 
+            RTRIM(un2.unides) AS unides_vu,
             up.tarifa
      FROM FTALLER.dbo.PAR_UBICACION_PRODUCTO up
      INNER JOIN FTALLER.dbo.PAR_UBICACION u ON up.empcod = u.empcod AND up.ubicod = u.ubicod
@@ -221,7 +236,7 @@ async function listarUbicacionesProducto() {
 }
 
 async function crearUbicacionProducto(data, actor) {
-  const { procod, ubicod, cantidad, unicod_cant, valor_unitario, unicod_vu, tarifa } = data;
+  const { procod, ubicod, cantidad, unicod_cant, valor_unitario, unicod_vu, tarifa, pronom } = data;
   await db.query(
     `IF NOT EXISTS (SELECT * FROM FTALLER.sys.objects WHERE object_id = OBJECT_ID(N'FTALLER.[dbo].[PAR_UBICACION_PRODUCTO]') AND type in (N'U'))
      BEGIN
@@ -236,14 +251,20 @@ async function crearUbicacionProducto(data, actor) {
          [tarifa] [decimal](18, 4) NULL,
          [codusucre] [varchar](20) NOT NULL,
          [fecusucre] [datetime] NOT NULL,
+         [pronom] [varchar](250) NULL,
          CONSTRAINT [PK_PAR_UBICACION_PRODUCTO] PRIMARY KEY CLUSTERED ([empcod], [procod], [ubicod])
        );
      END;
 
+     IF NOT EXISTS (SELECT 1 FROM sys.columns WHERE object_id = OBJECT_ID('FTALLER.dbo.PAR_UBICACION_PRODUCTO') AND name = 'pronom')
+     BEGIN
+       ALTER TABLE FTALLER.dbo.PAR_UBICACION_PRODUCTO ADD pronom VARCHAR(250) NULL;
+     END;
+
      INSERT INTO FTALLER.dbo.PAR_UBICACION_PRODUCTO 
-     (empcod, procod, ubicod, cantidad, unicod_cant, valor_unitario, unicod_vu, tarifa, codusucre, fecusucre)
+     (empcod, procod, ubicod, cantidad, unicod_cant, valor_unitario, unicod_vu, tarifa, codusucre, fecusucre, pronom)
      VALUES 
-     ('01', @procod, @ubicod, @cantidad, @unicod_cant, @valor_unitario, @unicod_vu, @tarifa, @actor, GETDATE())`,
+     ('01', @procod, @ubicod, @cantidad, @unicod_cant, @valor_unitario, @unicod_vu, @tarifa, @actor, GETDATE(), @pronom)`,
     {
       procod: procod.trim(),
       ubicod: ubicod.trim(),
@@ -252,6 +273,7 @@ async function crearUbicacionProducto(data, actor) {
       valor_unitario: valor_unitario !== '' && valor_unitario !== null ? parseFloat(valor_unitario) : null,
       unicod_vu: unicod_vu ? unicod_vu.trim() : null,
       tarifa: tarifa !== '' && tarifa !== null ? parseFloat(tarifa) : null,
+      pronom: pronom ? pronom.trim() : null,
       actor
     }
   );
@@ -259,14 +281,15 @@ async function crearUbicacionProducto(data, actor) {
 }
 
 async function editarUbicacionProducto(procod, ubicod, data, actor) {
-  const { cantidad, unicod_cant, valor_unitario, unicod_vu, tarifa } = data;
+  const { cantidad, unicod_cant, valor_unitario, unicod_vu, tarifa, pronom } = data;
   await db.query(
     `UPDATE FTALLER.dbo.PAR_UBICACION_PRODUCTO 
      SET cantidad = @cantidad, 
          unicod_cant = @unicod_cant, 
          valor_unitario = @valor_unitario, 
          unicod_vu = @unicod_vu, 
-         tarifa = @tarifa
+         tarifa = @tarifa,
+         pronom = COALESCE(@pronom, pronom)
      WHERE empcod = '01' AND procod = @procod AND ubicod = @ubicod`,
     {
       procod: procod.trim(),
@@ -275,7 +298,8 @@ async function editarUbicacionProducto(procod, ubicod, data, actor) {
       unicod_cant: unicod_cant ? unicod_cant.trim() : null,
       valor_unitario: valor_unitario !== '' && valor_unitario !== null ? parseFloat(valor_unitario) : null,
       unicod_vu: unicod_vu ? unicod_vu.trim() : null,
-      tarifa: tarifa !== '' && tarifa !== null ? parseFloat(tarifa) : null
+      tarifa: tarifa !== '' && tarifa !== null ? parseFloat(tarifa) : null,
+      pronom: pronom ? pronom.trim() : null
     }
   );
   return true;

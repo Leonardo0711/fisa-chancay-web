@@ -20,31 +20,31 @@
   </div> <!-- Closes .app-shell -->
   
   <!-- Core Layout Scripts -->
-  <script src="<%= baseUrl %>js/status-bar.js"></script>
-  <script src="<%= baseUrl %>js/form-validation.js"></script>
-  <script src="<%= baseUrl %>js/searchable-select.js"></script>
-  <script src="<%= baseUrl %>js/app.js"></script>
+  <script src="<%= baseUrl %>js/status-bar.js?v=<%= Date.now() %>"></script>
+  <script src="<%= baseUrl %>js/form-validation.js?v=<%= Date.now() %>"></script>
+  <script src="<%= baseUrl %>js/searchable-select.js?v=<%= Date.now() %>"></script>
+  <script src="<%= baseUrl %>js/app.js?v=<%= Date.now() %>"></script>
   
   <!-- Module Specific Scripts -->
   <% if (typeof path !== 'undefined') { %>
     <% if (path === '/usuarios') { %>
-      <script src="<%= baseUrl %>js/modules/usuarios.js"></script>
+      <script src="<%= baseUrl %>js/modules/usuarios.js?v=<%= Date.now() %>"></script>
     <% } else if (path === '/accesos') { %>
-      <script src="<%= baseUrl %>js/modules/accesos.js"></script>
+      <script src="<%= baseUrl %>js/modules/accesos.js?v=<%= Date.now() %>"></script>
     <% } else if (path === '/programas') { %>
-      <script src="<%= baseUrl %>js/modules/programas.js"></script>
+      <script src="<%= baseUrl %>js/modules/programas.js?v=<%= Date.now() %>"></script>
     <% } else if (path === '/perfiles') { %>
-      <script src="<%= baseUrl %>js/modules/perfiles.js"></script>
+      <script src="<%= baseUrl %>js/modules/perfiles.js?v=<%= Date.now() %>"></script>
     <% } else if (path === '/produccion') { %>
-      <script src="<%= baseUrl %>js/modules/produccion.js"></script>
+      <script src="<%= baseUrl %>js/modules/produccion.js?v=<%= Date.now() %>"></script>
     <% } else if (path === '/maestros/unidades') { %>
-      <script src="<%= baseUrl %>js/modules/maestros_unidades.js"></script>
+      <script src="<%= baseUrl %>js/modules/maestros_unidades.js?v=<%= Date.now() %>"></script>
     <% } else if (path === '/maestros/ubicaciones') { %>
-      <script src="<%= baseUrl %>js/modules/maestros_ubicaciones.js"></script>
+      <script src="<%= baseUrl %>js/modules/maestros_ubicaciones.js?v=<%= Date.now() %>"></script>
     <% } else if (path === '/maestros/ubicaciones-producto') { %>
-      <script src="<%= baseUrl %>js/modules/maestros_ubicaciones_producto.js"></script>
+      <script src="<%= baseUrl %>js/modules/maestros_ubicaciones_producto.js?v=<%= Date.now() %>"></script>
     <% } else if (path === '/home') { %>
-      <script src="<%= baseUrl %>js/modules/home.js"></script>
+      <script src="<%= baseUrl %>js/modules/home.js?v=<%= Date.now() %>"></script>
     <% } %>
   <% } %>
 </body>

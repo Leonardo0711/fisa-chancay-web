@@ -62,14 +62,77 @@ async function obtenerDetallesOt(otcod) {
   return produccionDal.obtenerDetallesOt(otcod);
 }
 
-async function obtenerLotesOt(otcod) {
-  const lotes = await produccionDal.obtenerLotesOt(otcod);
-  
-  const totalLotes = lotes.length;
-  return lotes.map((l, index) => ({
-    lotcod: l.lotcod,
-    avance: `${index + 1}/${totalLotes}`
-  }));
+async function obtenerLotesOt(otcod, ubicod) {
+  if (!otcod) return [];
+
+  // 1. Obtener detalles de la OT para conocer canreq (total presupuestado)
+  const otDetails = await produccionDal.obtenerDetallesOt(otcod);
+  const canreq = otDetails && otDetails.canreq ? parseInt(otDetails.canreq, 10) : 0;
+
+  // 2. Obtener los lotes pendientes desde eSolver
+  const rawLotes = await produccionDal.obtenerLotesOt(otcod);
+  if (!rawLotes || rawLotes.length === 0) return [];
+
+  // 3. Consultar todos los lotes ya registrados de la OT en TAL_CONTROL_PRODUCCION para conocer la serie completa
+  const todosLotesProducidosOt = await produccionDal.obtenerLotesProducidosDeOt(otcod).catch(() => []);
+
+  // 4. Juntar todos los códigos únicos (eSolver + ya producidos) para tener la serie completa de la OT sin duplicar
+  const todosLosCodigos = Array.from(new Set([
+    ...rawLotes.map(l => String(l.lotcod).trim()),
+    ...todosLotesProducidosOt.map(l => String(l).trim())
+  ]));
+
+  // Total de lotes de la OT (fijo en canreq si existe, o cantidad total de códigos únicos conocidos)
+  const totalLotes = Math.max(canreq || 0, todosLosCodigos.length);
+
+  const todosLosNumeros = todosLosCodigos
+    .map(lot => {
+      const match = lot.match(/(\d+)$/);
+      return match ? parseInt(match[1], 10) : null;
+    })
+    .filter(n => n !== null);
+
+  // 5. Calcular el punto de partida (startNum) en base a la serie completa de la OT
+  let startNum = null;
+  if (todosLosNumeros.length > 0) {
+    const minNum = Math.min(...todosLosNumeros);
+    const maxNum = Math.max(...todosLosNumeros);
+    if (todosLosCodigos.length >= totalLotes) {
+      startNum = minNum;
+    } else {
+      startNum = maxNum - totalLotes + 1;
+      if (startNum > minNum) {
+        startNum = minNum;
+      }
+    }
+  }
+
+  // 6. Consultar avance de costuras ya registradas por lote para esta ubicación
+  let costurasMap = {};
+  if (ubicod && String(ubicod).trim()) {
+    costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod).catch(() => ({}));
+  }
+
+  // 7. Retornar TODOS los lotes de la OT (sin excluir los ya registrados), cada uno con su posición y costuras previas
+  return rawLotes.map((l, idx) => {
+    const lot = String(l.lotcod).trim();
+    const match = lot.match(/(\d+)$/);
+    const num = match ? parseInt(match[1], 10) : null;
+
+    let lotNumber;
+    if (num !== null && startNum !== null) {
+      lotNumber = num - startNum + 1;
+    } else {
+      lotNumber = idx + 1;
+    }
+    return {
+      lotcod: lot,
+      num: lotNumber,
+      total: totalLotes,
+      avance: `${lotNumber}/${totalLotes}`,
+      costurasRegistradas: costurasMap[lot] || 0
+    };
+  });
 }
 
 async function listarUbicaciones() {
@@ -146,8 +209,8 @@ async function registrarProduccion(data, userContext) {
 
   if (Array.isArray(workers) && workers.length > 0) {
     finalTraCod = workers.map(w => String(w.usucod || w.tracod || '').trim()).join('|');
-    finalCantStr = workers.map(w => String(w.cantidad || 0).trim()).join('|');
-    finalVuStr = workers.map(w => String(finalTiptra === 'J' ? '0' : Number(w.vu || 0).toFixed(2)).trim()).join('|');
+    finalCantStr = workers.map(w => String(w.costuraNum || w.cantidad || 1).trim()).join('|');
+    finalVuStr = workers.map(w => String(finalTiptra === 'J' ? '0' : Number(w.vu !== undefined ? w.vu : (w.valor_unitario || 0)).toFixed(2)).trim()).join('|');
   }
 
   if (!finalTraCod) {

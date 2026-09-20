@@ -145,15 +145,21 @@
     }
 
     updateInputValue() {
-      const selectedIndex = this.select.selectedIndex;
-      if (selectedIndex >= 0 && selectedIndex < this.select.options.length) {
-        const opt = this.select.options[selectedIndex];
-        if (opt && opt.value !== '') {
-          this.input.value = opt.textContent.trim();
-          this.clearBtn.style.display = 'inline-flex';
-          this.wrapper.classList.add('has-value');
-          return;
+      let opt = null;
+      if (this.select.value) {
+        opt = this.select.querySelector(`option[value="${this.select.value}"]`);
+      }
+      if (!opt) {
+        const selectedIndex = this.select.selectedIndex;
+        if (selectedIndex >= 0 && selectedIndex < this.select.options.length) {
+          opt = this.select.options[selectedIndex];
         }
+      }
+      if (opt && opt.value !== '') {
+        this.input.value = opt.textContent.trim();
+        this.clearBtn.style.display = 'inline-flex';
+        this.wrapper.classList.add('has-value');
+        return;
       }
       this.input.value = '';
       this.input.placeholder = this.getPlaceholder();

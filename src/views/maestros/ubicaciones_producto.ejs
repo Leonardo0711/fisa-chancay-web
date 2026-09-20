@@ -15,7 +15,8 @@
         <table class="table table--grid" id="mapeosTable">
           <thead>
             <tr>
-              <th>Producto</th>
+              <th style="min-width: 140px;">Producto</th>
+              <th style="min-width: 220px;">Descripción</th>
               <th style="width: 150px;">Ubicación</th>
               <th style="width: 100px; text-align: center;">Cantidad</th>
               <th style="width: 100px;">Uni. Cant</th>
@@ -25,7 +26,7 @@
             </tr>
           </thead>
           <tbody id="map-tbody">
-            <tr class="row-empty"><td colspan="7">Cargando mapeos de producto...</td></tr>
+            <tr class="row-empty"><td colspan="8">Cargando mapeos de producto...</td></tr>
           </tbody>
         </table>
       </div>
@@ -56,6 +57,12 @@
                 <option value="">SELECCIONE UBICACIÓN</option>
               </select>
             </div>
+          </div>
+
+          <!-- DESCRIPCIÓN DEL PRODUCTO -->
+          <div class="field">
+            <label for="f-pronom">Descripción de Producto</label>
+            <input type="text" id="f-pronom" name="pronom" class="input" placeholder="Descripción del producto..." style="background: var(--surface-100); font-weight: 600; color: var(--text-900);" />
           </div>
 
           <div class="form-grid-2-local">

@@ -87,6 +87,74 @@ async function obtenerLotesOt(otcod) {
 }
 
 /**
+ * Lists lotes already recorded in FTALLER for a specific OT (and optionally for a specific location).
+ */
+async function obtenerLotesProducidosDeOt(otcod, ubicod) {
+  if (!otcod) return [];
+  const pool = await db.connect();
+  const req = pool.request();
+  req.input('otcod', db.sql.Char(25), otcod.trim());
+
+  let query = `
+    SELECT DISTINCT RTRIM(lotcod) AS lotcod
+    FROM TAL_CONTROL_PRODUCCION
+    WHERE otcod = @otcod AND lotcod IS NOT NULL AND RTRIM(lotcod) <> ''
+  `;
+
+  if (ubicod && String(ubicod).trim()) {
+    query += ` AND ubicod = @ubicod`;
+    req.input('ubicod', db.sql.Char(5), String(ubicod).trim());
+  }
+
+  const res = await req.query(query);
+  return res.recordset.map(row => row.lotcod.trim());
+}
+
+/**
+ * Gets the highest costura number / total costuras already recorded for each lot in a specific OT and location.
+ */
+async function obtenerAvanceCosturasLotes(otcod, ubicod) {
+  if (!otcod || !ubicod) return {};
+  const pool = await db.connect();
+  const req = pool.request();
+  req.input('otcod', db.sql.Char(25), otcod.trim());
+  req.input('ubicod', db.sql.Char(5), String(ubicod).trim());
+
+  const query = `
+    SELECT 
+      RTRIM(cp.lotcod) AS lotcod,
+      CAST(ISNULL((
+        SELECT MAX(d.cantidad) 
+        FROM TAL_CONTROL_PRODUCCION_DETALLE d WITH(NOLOCK)
+        JOIN TAL_CONTROL_PRODUCCION cp2 WITH(NOLOCK) ON cp2.empcod = d.empcod AND cp2.cpcod = d.cpcod
+        WHERE cp2.otcod = cp.otcod AND cp2.ubicod = cp.ubicod AND RTRIM(cp2.lotcod) = RTRIM(cp.lotcod)
+      ), 0) AS INT) AS maxDetCostura,
+      (
+        SELECT COUNT(d2.cpnum)
+        FROM TAL_CONTROL_PRODUCCION_DETALLE d2 WITH(NOLOCK)
+        JOIN TAL_CONTROL_PRODUCCION cp3 WITH(NOLOCK) ON cp3.empcod = d2.empcod AND cp3.cpcod = d2.cpcod
+        WHERE cp3.otcod = cp.otcod AND cp3.ubicod = cp.ubicod AND RTRIM(cp3.lotcod) = RTRIM(cp.lotcod)
+      ) AS countDetalles
+    FROM TAL_CONTROL_PRODUCCION cp WITH(NOLOCK)
+    WHERE cp.otcod = @otcod 
+      AND cp.ubicod = @ubicod 
+      AND cp.lotcod IS NOT NULL 
+      AND RTRIM(cp.lotcod) <> ''
+    GROUP BY cp.otcod, cp.ubicod, cp.lotcod
+  `;
+
+  const res = await req.query(query);
+  const map = {};
+  res.recordset.forEach(r => {
+    const key = String(r.lotcod || '').trim();
+    if (key) {
+      map[key] = (r.maxDetCostura && r.maxDetCostura > 0) ? r.maxDetCostura : (r.countDetalles || 0);
+    }
+  });
+  return map;
+}
+
+/**
  * Lists active locations from FTALLER.dbo.PAR_UBICACION.
  */
 async function listarUbicaciones() {
@@ -379,6 +447,8 @@ module.exports = {
   buscarOts,
   obtenerDetallesOt,
   obtenerLotesOt,
+  obtenerLotesProducidosDeOt,
+  obtenerAvanceCosturasLotes,
   listarUbicaciones,
   obtenerConfigUbicacionProducto,
   listarOperarios,

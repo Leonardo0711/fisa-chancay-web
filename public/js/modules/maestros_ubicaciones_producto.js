@@ -6,6 +6,7 @@
   let originalValues = {};
 
   const fProcod = document.getElementById('f-procod');
+  const fPronom = document.getElementById('f-pronom');
   const fUbicod = document.getElementById('f-ubicod');
   const fCantidad = document.getElementById('f-cantidad');
   const fUnicodCant = document.getElementById('f-unicod_cant');
@@ -35,13 +36,31 @@
   if (btnDelete) btnDelete.addEventListener('click', deleteRecord);
   if (btnCancel) btnCancel.addEventListener('click', resetForm);
 
-  // Bind changes check
-  [fProcod, fUbicod, fCantidad, fUnicodCant, fValorUnitario, fUnicodVu, fTarifa].forEach(input => {
+  // Bind changes check & draft saving
+  [fProcod, fPronom, fUbicod, fCantidad, fUnicodCant, fValorUnitario, fUnicodVu, fTarifa].forEach(input => {
     if (input) {
-      input.addEventListener('input', checkForChanges);
-      input.addEventListener('change', checkForChanges);
+      input.addEventListener('input', () => {
+        checkForChanges();
+        saveMapDraft();
+      });
+      input.addEventListener('change', () => {
+        checkForChanges();
+        saveMapDraft();
+      });
     }
   });
+
+  // Auto-search description if procod is typed manually
+  if (fProcod) {
+    fProcod.addEventListener('blur', async () => {
+      const code = fProcod.value.trim().toUpperCase();
+      fProcod.value = code;
+      if (code.length >= 3 && fPronom && !fPronom.value.trim()) {
+        await lookupProductDescription(code);
+      }
+      saveMapDraft();
+    });
+  }
 
   if (btnBuscarProducto) btnBuscarProducto.addEventListener('click', openProdModal);
   if (btnCloseModalProd) btnCloseModalProd.addEventListener('click', closeProdModal);
@@ -62,6 +81,7 @@
   async function initPage() {
     await loadSelectors();
     await loadMappings();
+    restoreMapDraft();
   }
 
   async function loadSelectors() {
@@ -94,13 +114,13 @@
   }
 
   async function loadMappings() {
-    tbody.innerHTML = '<tr><td colspan="7" class="row-empty">Cargando mapeos de producto...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="row-empty">Cargando mapeos de producto...</td></tr>';
     try {
       const data = await window.AppFetch('/api/maestros/ubicaciones-producto');
       tbody.innerHTML = '';
       
       if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="row-empty">No se encontraron relaciones registradas.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="row-empty">No se encontraron relaciones registradas.</td></tr>';
         return;
       }
 
@@ -117,6 +137,7 @@
 
         tr.innerHTML = `
           <td><strong>${item.procod}</strong></td>
+          <td style="font-size: 0.82rem; color: var(--text-900); max-width: 250px; white-space: normal; line-height: 1.25;">${item.pronom || '---'}</td>
           <td>${item.ubicod} - ${item.ubinom}</td>
           <td style="text-align: center;">${qtyTxt}</td>
           <td>${item.unicod_cant ? `${item.unicod_cant} (${item.unides_cant})` : '---'}</td>
@@ -128,7 +149,7 @@
         tbody.appendChild(tr);
       });
     } catch (err) {
-      tbody.innerHTML = `<tr><td colspan="7" class="row-empty" style="color:var(--danger);">${err.message}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" class="row-empty" style="color:var(--danger);">${err.message}</td></tr>`;
     }
   }
 
@@ -139,6 +160,8 @@
     fProcod.value = item.procod;
     fProcod.disabled = true; // compound PK component locked
     btnBuscarProducto.disabled = true;
+    if (fPronom) fPronom.value = item.pronom || '';
+    
     fUbicod.value = item.ubicod;
     fUbicod.disabled = true; // compound PK component locked
     
@@ -151,6 +174,7 @@
     // Cache original values
     originalValues = {
       procod: item.procod,
+      pronom: item.pronom || '',
       ubicod: item.ubicod,
       cantidad: String(item.cantidad !== null ? item.cantidad : ''),
       unicod_cant: item.unicod_cant || '',
@@ -162,8 +186,9 @@
     // Toggle row class
     Array.from(tbody.children).forEach(tr => {
       tr.classList.remove('row-selected');
-      const isMatch = tr.querySelector('strong').textContent === item.procod && 
-                      tr.children[1].textContent.startsWith(item.ubicod);
+      const strongEl = tr.querySelector('strong');
+      const isMatch = strongEl && strongEl.textContent === item.procod && 
+                      tr.children[2] && tr.children[2].textContent.startsWith(item.ubicod);
       if (isMatch) {
         tr.classList.add('row-selected');
       }
@@ -172,6 +197,7 @@
     hideMessage();
     btnDelete.style.display = 'block';
     if (btnSave) btnSave.disabled = true;
+    saveMapDraft();
   }
 
   function checkForChanges() {
@@ -180,6 +206,7 @@
       return;
     }
     const hasChanges = fProcod.value !== originalValues.procod ||
+                      (fPronom ? fPronom.value.trim() : '') !== (originalValues.pronom || '') ||
                       fUbicod.value !== originalValues.ubicod ||
                       fCantidad.value.trim() !== originalValues.cantidad ||
                       fUnicodCant.value !== originalValues.unicod_cant ||
@@ -193,6 +220,7 @@
     currentKey = null;
     originalValues = {};
     form.reset();
+    if (fPronom) fPronom.value = '';
     fProcod.disabled = false;
     btnBuscarProducto.disabled = false;
     fUbicod.disabled = false;
@@ -200,8 +228,41 @@
     btnDelete.style.display = 'none';
     if (btnSave) btnSave.disabled = false;
     hideMessage();
+    clearMapDraft();
     
     Array.from(tbody.children).forEach(tr => tr.classList.remove('row-selected'));
+  }
+
+  /**
+   * Resetea el formulario tras grabar, MANTENIENDO el código y descripción del producto
+   * para permitir asociar rápidamente otra ubicación al mismo producto sin reescribir.
+   */
+  function resetAfterSave(savedProcod, savedPronom) {
+    currentKey = null;
+    originalValues = {};
+    
+    fProcod.value = savedProcod;
+    if (fPronom) fPronom.value = savedPronom;
+    
+    fProcod.disabled = false;
+    btnBuscarProducto.disabled = false;
+    
+    fUbicod.value = '';
+    fUbicod.disabled = false;
+    
+    fCantidad.value = '';
+    fUnicodCant.value = '';
+    fValorUnitario.value = '';
+    fUnicodVu.value = '';
+    fTarifa.value = '';
+    
+    btnDelete.style.display = 'none';
+    if (btnSave) btnSave.disabled = false;
+    
+    Array.from(tbody.children).forEach(tr => tr.classList.remove('row-selected'));
+    
+    saveMapDraft();
+    fUbicod.focus();
   }
 
   function resetForm() {
@@ -214,6 +275,7 @@
 
     const data = {
       procod: fProcod.value.toUpperCase().trim(),
+      pronom: fPronom ? fPronom.value.trim() : null,
       ubicod: fUbicod.value,
       cantidad: fCantidad.value !== '' ? parseFloat(fCantidad.value) : null,
       unicod_cant: fUnicodCant.value || null,
@@ -248,9 +310,14 @@
         });
       }
 
+      const savedProcod = data.procod;
+      const savedPronom = data.pronom || '';
+
       showMessage(res.message, 'success');
-      loadMappings();
-      startNew();
+      await loadMappings();
+      
+      // Mantener únicamente el código y descripción del producto según requerimiento
+      resetAfterSave(savedProcod, savedPronom);
     } catch (err) {
       showMessage(err.message, 'error');
     }
@@ -265,7 +332,7 @@
         method: 'DELETE'
       });
       showMessage(res.message, 'success');
-      loadMappings();
+      await loadMappings();
       startNew();
     } catch (err) {
       showMessage(err.message, 'error');
@@ -283,6 +350,20 @@
 
   function closeProdModal() {
     modalProducto.classList.remove('active');
+  }
+
+  async function lookupProductDescription(procod) {
+    try {
+      const data = await window.AppFetch(`/api/produccion/ots?q=${encodeURIComponent(procod)}`);
+      if (Array.isArray(data)) {
+        const match = data.find(ot => ot.procod && ot.procod.toUpperCase() === procod.toUpperCase());
+        if (match && match.pronom && fPronom) {
+          fPronom.value = match.pronom;
+        }
+      }
+    } catch (err) {
+      console.warn('No se pudo autocompletar descripción:', err.message);
+    }
   }
 
   async function performProductSearch() {
@@ -322,7 +403,9 @@
         `;
         tr.addEventListener('click', () => {
           fProcod.value = item.procod;
+          if (fPronom) fPronom.value = item.pronom || '';
           closeProdModal();
+          saveMapDraft();
           fUbicod.focus();
         });
         modalProdTbody.appendChild(tr);
@@ -330,6 +413,62 @@
     } catch (err) {
       modalProdTbody.innerHTML = `<tr class="row-empty"><td colspan="3" style="color:var(--danger);">${err.message}</td></tr>`;
     }
+  }
+
+  // --- PERSISTENCIA DE BORRADOR ANTE ACTUALIZACIÓN (F5) ---
+
+  function saveMapDraft() {
+    try {
+      if (!fProcod.value.trim() && !fUbicod.value) {
+        localStorage.removeItem('fisa_chancay_map_prod_draft');
+        return;
+      }
+      const draft = {
+        procod: fProcod.value,
+        pronom: fPronom ? fPronom.value : '',
+        ubicod: fUbicod.value,
+        cantidad: fCantidad.value,
+        unicod_cant: fUnicodCant.value,
+        valor_unitario: fValorUnitario.value,
+        unicod_vu: fUnicodVu.value,
+        tarifa: fTarifa.value,
+        isEditing: !!currentKey,
+        currentKey
+      };
+      localStorage.setItem('fisa_chancay_map_prod_draft', JSON.stringify(draft));
+    } catch (e) {}
+  }
+
+  function clearMapDraft() {
+    try {
+      localStorage.removeItem('fisa_chancay_map_prod_draft');
+    } catch (e) {}
+  }
+
+  function restoreMapDraft() {
+    try {
+      const raw = localStorage.getItem('fisa_chancay_map_prod_draft');
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (!draft) return;
+      
+      if (draft.procod) fProcod.value = draft.procod;
+      if (draft.pronom && fPronom) fPronom.value = draft.pronom;
+      if (draft.ubicod) fUbicod.value = draft.ubicod;
+      if (draft.cantidad) fCantidad.value = draft.cantidad;
+      if (draft.unicod_cant) fUnicodCant.value = draft.unicod_cant;
+      if (draft.valor_unitario) fValorUnitario.value = draft.valor_unitario;
+      if (draft.unicod_vu) fUnicodVu.value = draft.unicod_vu;
+      if (draft.tarifa) fTarifa.value = draft.tarifa;
+
+      if (draft.isEditing && draft.currentKey) {
+        currentKey = draft.currentKey;
+        fProcod.disabled = true;
+        btnBuscarProducto.disabled = true;
+        fUbicod.disabled = true;
+        btnDelete.style.display = 'block';
+      }
+    } catch (e) {}
   }
 
   function showMessage(msg, type) {

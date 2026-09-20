@@ -48,6 +48,6 @@ module.exports = {
   SESSION_TTL_HOURS: parseInt(process.env.SESSION_TTL_HOURS || '12', 10),
   SESSION_REMEMBER_DAYS: parseInt(process.env.SESSION_REMEMBER_DAYS || '7', 10),
 
-  CAPTCHA_ENABLED: process.env.CAPTCHA_ENABLED !== 'false',
+  CAPTCHA_ENABLED: process.env.CAPTCHA_ENABLED === 'true',
   BOOTSTRAP_SEED: process.env.BOOTSTRAP_SEED === 'true'
 };

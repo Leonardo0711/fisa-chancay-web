@@ -5,10 +5,13 @@
   // State management
   let activeOt = null;
   let activeProduct = null;
+  let currentOtDetails = null;
   let locationsConfig = {};
   let operariosList = [];
   let selectedOperarios = new Map(); // Key: usucod, Value: operario object
   let allLocations = [];
+  let currentLotesData = [];
+  let lotesCosturasMap = {};
 
   // DOM Elements
   const btnBuscarOt = document.getElementById('btnBuscarOt');
@@ -67,11 +70,33 @@
   }
 
   if (selectUbicacion) {
-    selectUbicacion.addEventListener('change', handleUbicacionChange);
+    selectUbicacion.addEventListener('change', () => {
+      handleUbicacionChange();
+      saveFormDraft();
+    });
+  }
+
+  if (selectLote) {
+    selectLote.addEventListener('change', () => {
+      handleLoteChange();
+      saveFormDraft();
+    });
+  }
+
+  if (inputCantidadIngresar) {
+    inputCantidadIngresar.addEventListener('input', () => {
+      recalculateWorkerValues();
+      renderSelectedOperarios();
+      saveFormDraft();
+    });
   }
 
   if (inputVuIngresar) {
-    inputVuIngresar.addEventListener('input', recalculateWorkerValues);
+    inputVuIngresar.addEventListener('input', () => {
+      recalculateWorkerValues();
+      renderSelectedOperarios();
+      saveFormDraft();
+    });
   }
 
   if (btnAgregarOperario) {
@@ -88,11 +113,33 @@
   if (btnAccept) btnAccept.addEventListener('click', handleSubmit);
   if (btnCancel) btnCancel.addEventListener('click', handleCancel);
 
-  if (radioDestajo) radioDestajo.addEventListener('change', filterLocationsByTipoTrabajo);
-  if (radioJornal) radioJornal.addEventListener('change', filterLocationsByTipoTrabajo);
+  if (radioDestajo) {
+    radioDestajo.addEventListener('change', () => {
+      filterLocationsByTipoTrabajo();
+      saveFormDraft();
+    });
+  }
+  if (radioJornal) {
+    radioJornal.addEventListener('change', () => {
+      filterLocationsByTipoTrabajo();
+      saveFormDraft();
+    });
+  }
 
   // Initialize
-  loadUbicaciones();
+  initPage();
+
+  async function initPage() {
+    await loadUbicaciones();
+    // Preload operarios list
+    try {
+      operariosList = await window.AppFetch('/api/produccion/operarios');
+    } catch (e) {
+      console.warn('Error precargando operarios:', e.message);
+    }
+    // Restaurar borrador ante actualización (F5)
+    await restoreFormDraft();
+  }
 
   // --- Helper Functions ---
 
@@ -161,9 +208,112 @@
     }
   }
 
+  function getSelectedLotPrevCosturas() {
+    const lotVal = selectLote ? String(selectLote.value || '').trim() : '';
+    if (lotVal && lotesCosturasMap[lotVal] !== undefined) {
+      return lotesCosturasMap[lotVal];
+    }
+    if (lotVal && Array.isArray(currentLotesData)) {
+      const match = currentLotesData.find(l => String(l.lotcod || '').trim() === lotVal);
+      if (match && match.costurasRegistradas !== undefined) {
+        return parseInt(match.costurasRegistradas, 10) || 0;
+      }
+    }
+    if (selectLote && lotVal) {
+      const opt = selectLote.querySelector(`option[value="${lotVal}"]`);
+      if (opt && opt.dataset && opt.dataset.prevCosturas) {
+        return parseInt(opt.dataset.prevCosturas, 10) || 0;
+      }
+    }
+    if (selectLote && selectLote.selectedIndex >= 0) {
+      const opt = selectLote.options[selectLote.selectedIndex];
+      if (opt && opt.dataset && opt.dataset.prevCosturas) {
+        return parseInt(opt.dataset.prevCosturas, 10) || 0;
+      }
+    }
+    return 0;
+  }
+
+  async function loadLotes(otcod, ubicod) {
+    try {
+      const targetUbicod = ubicod || (selectUbicacion ? selectUbicacion.value : null);
+      let url = `/api/produccion/ots/${encodeURIComponent(otcod)}/lotes`;
+      if (targetUbicod) {
+        url += `?ubicod=${encodeURIComponent(targetUbicod)}`;
+      }
+      const lotes = await window.AppFetch(url);
+      currentLotesData = Array.isArray(lotes) ? lotes : [];
+      lotesCosturasMap = {};
+      if (Array.isArray(lotes)) {
+        lotes.forEach(l => {
+          const k = String(l.lotcod || '').trim();
+          if (k) lotesCosturasMap[k] = parseInt(l.costurasRegistradas || 0, 10);
+        });
+      }
+
+      selectLote.innerHTML = '<option value="">SELECCIONE LOTE</option>';
+      if (Array.isArray(lotes) && lotes.length > 0) {
+        selectLote.disabled = false;
+        lotes.forEach((l, idx) => {
+          const opt = document.createElement('option');
+          opt.value = l.lotcod;
+          const displayFraction = l.avance || `${idx + 1}/${lotes.length}`;
+          opt.textContent = `${l.lotcod} - ${displayFraction}`;
+          opt.dataset.avance = displayFraction;
+          opt.dataset.prevCosturas = String(l.costurasRegistradas || 0);
+          selectLote.appendChild(opt);
+        });
+      } else {
+        selectLote.innerHTML = '<option value="">NO HAY LOTES DISPONIBLES</option>';
+        selectLote.disabled = true;
+      }
+      if (selectLote && selectLote._searchableInstance && typeof selectLote._searchableInstance.sync === 'function') {
+        selectLote._searchableInstance.sync();
+      }
+      return lotes;
+    } catch (err) {
+      console.error('Error al cargar lotes:', err.message);
+      return [];
+    }
+  }
+
+  async function loadProductConfig(procod) {
+    try {
+      locationsConfig = await window.AppFetch(`/api/produccion/ubicaciones/producto/${encodeURIComponent(procod)}`);
+    } catch (err) {
+      console.error('Error al cargar configuraciones de ubicación:', err.message);
+      locationsConfig = {};
+    }
+    filterLocationsByTipoTrabajo();
+  }
+
+  function handleLoteChange() {
+    if (!selectLote) return;
+    const selectedOpt = selectLote.options[selectLote.selectedIndex];
+    if (selectedOpt && selectedOpt.value) {
+      lblLoteProgress.textContent = selectedOpt.dataset.avance || '---';
+
+      const prevCosturas = getSelectedLotPrevCosturas();
+      const config = getCurrentLocationConfig();
+      if (config && config.cantidad !== null && typeof config.cantidad !== 'undefined') {
+        const totalConfig = parseInt(config.cantidad, 10) || 0;
+        const remaining = Math.max(totalConfig - prevCosturas, 1);
+        if (!inputCantidadIngresar.value || inputCantidadIngresar.dataset.autoFilled === '1') {
+          inputCantidadIngresar.value = remaining;
+          inputCantidadIngresar.dataset.autoFilled = '1';
+        }
+      }
+    } else {
+      lblLoteProgress.textContent = '---';
+    }
+    recalculateWorkerValues();
+    renderSelectedOperarios();
+  }
+
   async function selectOt(ot) {
     activeOt = ot.otcod;
     activeProduct = ot.procod;
+    currentOtDetails = ot;
     inputOt.value = ot.otcod;
     
     lblProcod.textContent = ot.procod;
@@ -184,43 +334,17 @@
     
     // Clear operarios
     selectedOperarios.clear();
+    modalSelectedCodes = [];
     renderSelectedOperarios();
     btnAgregarOperario.disabled = true;
 
     // Load Lotes for the selected OT
-    try {
-      const lotes = await window.AppFetch(`/api/produccion/ots/${encodeURIComponent(ot.otcod)}/lotes`);
-      selectLote.innerHTML = '<option value="">SELECCIONE LOTE</option>';
-      if (lotes.length > 0) {
-        selectLote.disabled = false;
-        lotes.forEach((l, idx) => {
-          const opt = document.createElement('option');
-          opt.value = l.lotcod;
-          const displayFraction = `${idx + 1}/${lotes.length}`;
-          opt.textContent = `${l.lotcod} - ${displayFraction}`;
-          opt.dataset.avance = l.avance || displayFraction;
-          selectLote.appendChild(opt);
-        });
-        
-        selectLote.addEventListener('change', () => {
-          const selectedOpt = selectLote.options[selectLote.selectedIndex];
-          lblLoteProgress.textContent = selectedOpt.dataset.avance || '---';
-        });
-      }
-    } catch (err) {
-      console.error('Error al cargar lotes:', err.message);
-    }
+    await loadLotes(ot.otcod);
 
     // Load Location configurations for the selected Product
-    try {
-      locationsConfig = await window.AppFetch(`/api/produccion/ubicaciones/producto/${encodeURIComponent(ot.procod)}`);
-    } catch (err) {
-      console.error('Error al cargar configuraciones de ubicación:', err.message);
-      locationsConfig = {};
-    }
+    await loadProductConfig(ot.procod);
 
-    // Filter locations specifically for the selected product
-    filterLocationsByTipoTrabajo();
+    saveFormDraft();
   }
 
   async function loadUbicaciones() {
@@ -232,7 +356,7 @@
     }
   }
 
-  function filterLocationsByTipoTrabajo() {
+  function filterLocationsByTipoTrabajo(preservedUbicod = null) {
     if (!selectUbicacion) return;
     const isDestajoSelected = radioDestajo && radioDestajo.checked;
     const targetTiptra = isDestajoSelected ? 'D' : 'J';
@@ -278,9 +402,13 @@
       selectUbicacion.appendChild(opt);
     });
 
-    // Reset selected location & clear dependent fields
-    selectUbicacion.value = '';
-    resetUbicacionFields();
+    // Si se preserva una ubicación válida, mantenerla; de lo contrario resetear
+    if (preservedUbicod && availableLocations.some(u => u.ubicod === preservedUbicod)) {
+      selectUbicacion.value = preservedUbicod;
+    } else {
+      selectUbicacion.value = '';
+      resetUbicacionFields();
+    }
   }
 
   function handleUbicacionChange() {
@@ -326,8 +454,9 @@
     if (tiptra === 'D' && !ubiuni) {
       // CASE 1: Destajo y No Universal
       inputCantidadIngresar.value = config.cantidad !== null && typeof config.cantidad !== 'undefined' ? config.cantidad : '';
-      inputCantidadIngresar.readOnly = config.cantidad !== null && typeof config.cantidad !== 'undefined';
-      inputCantidadIngresar.style.background = inputCantidadIngresar.readOnly ? 'var(--surface-100)' : '#fff';
+      inputCantidadIngresar.readOnly = false;
+      inputCantidadIngresar.dataset.autoFilled = '1';
+      inputCantidadIngresar.style.background = '#fff';
       badgCant.textContent = uCant;
 
       inputVuIngresar.value = config.valorUnitario !== null && typeof config.valorUnitario !== 'undefined' ? config.valorUnitario : '';
@@ -374,6 +503,25 @@
 
     // Recalcular valores de operarios
     recalculateWorkerValues();
+
+    // Recargar lotes disponibles para esta ubicación específica
+    if (activeOt && selectLote) {
+      const currentLote = selectLote.value;
+      loadLotes(activeOt, ubicod).then(() => {
+        if (currentLote && selectLote.querySelector(`option[value="${currentLote}"]`)) {
+          selectLote.value = currentLote;
+        } else if (selectLote.options.length > 1) {
+          selectLote.selectedIndex = 1;
+        } else {
+          selectLote.value = '';
+        }
+        if (selectLote && selectLote._searchableInstance && typeof selectLote._searchableInstance.sync === 'function') {
+          selectLote._searchableInstance.sync();
+        }
+        handleLoteChange();
+        saveFormDraft();
+      });
+    }
   }
 
   function resetUbicacionFields() {
@@ -399,10 +547,16 @@
 
   // --- Operarios Modal ---
 
+  let modalSelectedCodes = []; // Mantiene el orden exacto en el que fueron seleccionados
+
   async function openOperarioModal() {
     modalOperario.classList.add('active');
     modalOpSearch.value = '';
     
+    // Inicializar selección del modal con los operarios ya asignados previamente (respetando su orden)
+    modalSelectedCodes = Array.from(selectedOperarios.keys());
+    updateModalOpSelectedCount();
+
     const isDestajo = radioDestajo && radioDestajo.checked;
     const targetTiptra = isDestajo ? 'D' : 'J';
     const titleEl = document.getElementById('modalOperarioTitle');
@@ -410,14 +564,17 @@
       titleEl.textContent = isDestajo ? 'Asignar Operarios (Destajo)' : 'Asignar Operarios (Jornal)';
     }
 
-    modalOpTbody.innerHTML = '<tr class="row-empty"><td colspan="4">Cargando operarios...</td></tr>';
+    modalOpTbody.innerHTML = '<tr class="row-empty"><td colspan="5">Cargando operarios...</td></tr>';
     
     try {
       const data = await window.AppFetch(`/api/produccion/operarios?tipo=${encodeURIComponent(targetTiptra)}`);
-      operariosList = data;
+      operariosList = data || [];
       renderOperariosModalList();
+      setTimeout(() => {
+        if (modalOpSearch) modalOpSearch.focus();
+      }, 50);
     } catch (err) {
-      modalOpTbody.innerHTML = `<tr class="row-empty"><td colspan="4" style="color:var(--danger);">${err.message}</td></tr>`;
+      modalOpTbody.innerHTML = `<tr class="row-empty"><td colspan="5" style="color:var(--danger);">${err.message}</td></tr>`;
     }
   }
 
@@ -425,35 +582,146 @@
     modalOperario.classList.remove('active');
   }
 
+  function updateModalOpSelectedCount() {
+    const countBadge = document.getElementById('lblModalOpSelectedCount');
+    if (countBadge) {
+      const count = modalSelectedCodes.length;
+      countBadge.textContent = `${count} seleccionado${count === 1 ? '' : 's'}`;
+    }
+  }
+
   function renderOperariosModalList() {
     modalOpTbody.innerHTML = '';
-    const q = modalOpSearch.value.trim().toLowerCase();
+    const q = modalOpSearch ? modalOpSearch.value.trim().toLowerCase() : '';
 
-    const filtered = operariosList.filter(o => 
-      o.usucod.toLowerCase().includes(q) || 
-      o.usunom.toLowerCase().includes(q) ||
-      o.cargo.toLowerCase().includes(q)
-    );
+    // 1. Grupo de seleccionados: en el orden exacto en que fueron elegidos (modalSelectedCodes)
+    // Siempre visibles arriba sin importar lo que se busque en el filtro
+    const selectedList = modalSelectedCodes
+      .map(code => operariosList.find(o => o.usucod === code))
+      .filter(Boolean);
 
-    if (filtered.length === 0) {
-      modalOpTbody.innerHTML = '<tr class="row-empty"><td colspan="4">No se encontraron operarios.</td></tr>';
+    // 2. Grupo de disponibles (no seleccionados): filtrados por el término de búsqueda
+    const availableList = operariosList.filter(o => {
+      if (modalSelectedCodes.includes(o.usucod)) return false;
+      if (!q) return true;
+      return (
+        (o.usucod && o.usucod.toLowerCase().includes(q)) || 
+        (o.usunom && o.usunom.toLowerCase().includes(q)) ||
+        (o.cargo && o.cargo.toLowerCase().includes(q))
+      );
+    });
+
+    updateModalOpSelectedCount();
+
+    if (selectedList.length === 0 && availableList.length === 0) {
+      modalOpTbody.innerHTML = '<tr class="row-empty"><td colspan="5">No se encontraron operarios.</td></tr>';
       return;
     }
 
-    filtered.forEach(o => {
-      const tr = document.createElement('tr');
-      const isChecked = selectedOperarios.has(o.usucod);
-      
-      tr.innerHTML = `
-        <td style="text-align: center;">
-          <input type="checkbox" class="op-checkbox" data-code="${o.usucod}" ${isChecked ? 'checked' : ''} />
+    // --- SECCIÓN 1: SELECCIONADOS (ARRIBA, EN SU ORDEN RESPECTIVO) ---
+    if (selectedList.length > 0) {
+      const headerTr = document.createElement('tr');
+      headerTr.style.background = '#e0f2fe';
+      headerTr.style.borderBottom = '1.5px solid var(--brand-300, #93c5fd)';
+      headerTr.innerHTML = `
+        <td colspan="5" style="padding: 4px 8px; font-weight: 800; font-size: 0.72rem; color: var(--brand-900); text-transform: uppercase; letter-spacing: 0.4px;">
+          ✓ OPERARIOS SELECCIONADOS (${selectedList.length}) &mdash; ORDEN DE ASIGNACIÓN
         </td>
-        <td>${o.usucod}</td>
-        <td>${o.usunom}</td>
-        <td><span class="badge" style="background:var(--surface-100); color:var(--text-700);">${o.cargo}</span></td>
       `;
-      modalOpTbody.appendChild(tr);
-    });
+      modalOpTbody.appendChild(headerTr);
+
+      selectedList.forEach((o, index) => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.style.background = '#f0fdf4';
+        tr.style.borderBottom = '1px solid #bbf7d0';
+        tr.style.height = '28px';
+
+        tr.innerHTML = `
+          <td style="text-align: center; vertical-align: middle; padding: 2px 4px;">
+            <input type="checkbox" class="op-checkbox" data-code="${o.usucod}" checked style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--brand-700); margin: 0 auto; display: block;" />
+          </td>
+          <td style="text-align: center; vertical-align: middle; padding: 2px 4px;">
+            <span class="badge" style="background: var(--brand-700); color: #fff; font-weight: 800; border-radius: 4px; padding: 1px 5px; font-size: 0.72rem; line-height: 1;">#${index + 1}</span>
+          </td>
+          <td style="font-weight: 800; color: var(--brand-900); font-size: 0.78rem; vertical-align: middle; padding: 2px 6px;">${o.usucod}</td>
+          <td style="font-weight: 700; color: var(--text-900); font-size: 0.8rem; vertical-align: middle; padding: 2px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${o.usunom}">${o.usunom}</td>
+          <td style="vertical-align: middle; padding: 2px 6px;"><span class="badge" style="background: var(--surface-100); color: var(--text-700); font-weight: 600; font-size: 0.72rem; padding: 1px 6px; line-height: 1.2;">${o.cargo || '---'}</span></td>
+        `;
+
+        tr.addEventListener('click', (e) => {
+          if (e.target.tagName !== 'INPUT') {
+            toggleOperarioSelection(o.usucod);
+          }
+        });
+
+        const cb = tr.querySelector('.op-checkbox');
+        cb.addEventListener('change', () => {
+          toggleOperarioSelection(o.usucod);
+        });
+
+        modalOpTbody.appendChild(tr);
+      });
+    }
+
+    // --- SECCIÓN 2: DISPONIBLES (ABAJO) ---
+    if (availableList.length > 0) {
+      if (selectedList.length > 0) {
+        const availHeaderTr = document.createElement('tr');
+        availHeaderTr.style.background = 'var(--surface-100, #f8fafc)';
+        availHeaderTr.style.borderBottom = '1px solid var(--border-200)';
+        availHeaderTr.innerHTML = `
+          <td colspan="5" style="padding: 4px 8px; font-weight: 700; font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.4px;">
+            OPERARIOS DISPONIBLES ${q ? `(FILTRADOS POR "${q.toUpperCase()}")` : ''} (${availableList.length})
+          </td>
+        `;
+        modalOpTbody.appendChild(availHeaderTr);
+      }
+
+      availableList.forEach(o => {
+        const tr = document.createElement('tr');
+        tr.style.cursor = 'pointer';
+        tr.style.borderBottom = '1px solid var(--border-200)';
+        tr.style.height = '28px';
+
+        tr.innerHTML = `
+          <td style="text-align: center; vertical-align: middle; padding: 2px 4px;">
+            <input type="checkbox" class="op-checkbox" data-code="${o.usucod}" style="cursor: pointer; width: 15px; height: 15px; margin: 0 auto; display: block;" />
+          </td>
+          <td style="text-align: center; vertical-align: middle; color: var(--muted); font-size: 0.74rem; padding: 2px 4px;">-</td>
+          <td style="font-weight: 700; color: var(--text-700); font-size: 0.78rem; vertical-align: middle; padding: 2px 6px;">${o.usucod}</td>
+          <td style="font-weight: 600; color: var(--text-900); font-size: 0.8rem; vertical-align: middle; padding: 2px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${o.usunom}">${o.usunom}</td>
+          <td style="vertical-align: middle; padding: 2px 6px;"><span class="badge" style="background: var(--surface-100); color: var(--text-700); font-size: 0.72rem; padding: 1px 6px; line-height: 1.2;">${o.cargo || '---'}</span></td>
+        `;
+
+        tr.addEventListener('click', (e) => {
+          if (e.target.tagName !== 'INPUT') {
+            toggleOperarioSelection(o.usucod);
+          }
+        });
+
+        const cb = tr.querySelector('.op-checkbox');
+        cb.addEventListener('change', () => {
+          toggleOperarioSelection(o.usucod);
+        });
+
+        modalOpTbody.appendChild(tr);
+      });
+    } else if (selectedList.length > 0 && q) {
+      const emptyAvail = document.createElement('tr');
+      emptyAvail.innerHTML = `<td colspan="5" style="text-align: center; padding: 10px; color: var(--muted); font-size: 0.8rem; font-style: italic;">No se encontraron más operarios disponibles para "${q}".</td>`;
+      modalOpTbody.appendChild(emptyAvail);
+    }
+  }
+
+  function toggleOperarioSelection(code) {
+    const idx = modalSelectedCodes.indexOf(code);
+    if (idx >= 0) {
+      modalSelectedCodes.splice(idx, 1);
+    } else {
+      modalSelectedCodes.push(code);
+    }
+    renderOperariosModalList();
   }
 
   function filterOperariosTable() {
@@ -461,29 +729,39 @@
   }
 
   function addSelectedOperarios() {
-    const checkboxes = modalOpTbody.querySelectorAll('.op-checkbox');
-    
-    checkboxes.forEach(cb => {
-      const code = cb.dataset.code;
+    const prevCosturas = getSelectedLotPrevCosturas();
+    const startCostura = prevCosturas + 1;
+    const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
+    const maxCostura = cantCosturas > 0 ? (startCostura + cantCosturas - 1) : (startCostura + modalSelectedCodes.length - 1);
+
+    const newSelected = new Map();
+
+    modalSelectedCodes.forEach((code, index) => {
       const opObj = operariosList.find(o => o.usucod === code);
-      
-      if (cb.checked) {
-        if (!selectedOperarios.has(code)) {
-          selectedOperarios.set(code, {
-            usucod: opObj.usucod,
-            usunom: opObj.usunom,
-            cantidad: 1, // Default quantity
-            vu: 0 // Will be calculated immediately
-          });
-        }
-      } else {
-        selectedOperarios.delete(code);
+      if (!opObj) return;
+
+      // Asignación secuencial a partir de startCostura (#1 -> startCostura, #2 -> startCostura + 1, etc.)
+      let assignedCostura = startCostura + index;
+      if (cantCosturas > 0 && assignedCostura > maxCostura) {
+        assignedCostura = maxCostura;
       }
+
+      newSelected.set(code, {
+        usucod: opObj.usucod,
+        usunom: opObj.usunom,
+        costuraNum: assignedCostura,
+        cantidad: 1,
+        vu: 0
+      });
     });
 
+    selectedOperarios.clear();
+    newSelected.forEach((val, key) => selectedOperarios.set(key, val));
+
     closeOperarioModal();
-    renderSelectedOperarios();
     recalculateWorkerValues();
+    renderSelectedOperarios();
+    saveFormDraft();
   }
 
   function formatWorkerName(fullName) {
@@ -498,57 +776,189 @@
     return `<div style="line-height: 1.25;"><span style="font-weight: 800; color: var(--brand-900); font-size: 0.88rem;">${topWords}</span><br><span style="font-size: 0.82rem; color: var(--text-700); font-weight: 600;">${bottomWords}</span></div>`;
   }
 
+  let draggedWorkerCode = null;
+
   function renderSelectedOperarios() {
     operariosTbody.innerHTML = '';
 
-    if (selectedOperarios.size === 0) {
+    const prevCosturas = getSelectedLotPrevCosturas();
+    const startCostura = prevCosturas + 1;
+    const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
+
+    if (selectedOperarios.size === 0 && cantCosturas === 0) {
       operariosTbody.innerHTML = '<tr class="row-empty"><td colspan="5">Ningún operario seleccionado. Utilice el botón "AGREGAR" de arriba.</td></tr>';
       return;
     }
 
+    // Rango de costuras para esta tanda: desde startCostura hasta startCostura + cantCosturas - 1
+    let minCostura = startCostura;
+    let maxCostura = cantCosturas > 0 ? (startCostura + cantCosturas - 1) : startCostura;
+
+    const costuraCounts = {};
     selectedOperarios.forEach(op => {
-      const tr = document.createElement('tr');
-      const formattedVu = op.vu > 0 ? (Number.isInteger(op.vu) ? op.vu : parseFloat(op.vu.toFixed(4))) : '';
-      
-      tr.innerHTML = `
-        <td style="font-weight: 800; color: var(--brand-900); font-size: 0.85rem; padding: 8px 6px; vertical-align: middle;">${op.usucod}</td>
-        <td style="padding: 8px 6px; white-space: normal; vertical-align: middle; min-width: 140px;">${formatWorkerName(op.usunom)}</td>
-        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
-          <input type="number" class="input op-qty-input" data-code="${op.usucod}" min="1" value="${op.cantidad || 1}" style="width: 58px; height: 36px; text-align: center; padding: 4px 6px; font-weight: 700; font-size: 0.95rem; border-radius: 8px; border: 1.5px solid var(--border-300, #cbd5e1); display: inline-block;" />
-        </td>
-        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
-          <input type="number" class="input op-vu-input" data-code="${op.usucod}" min="0" step="0.0001" value="${formattedVu}" style="width: 70px; height: 36px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900, #0f172a); border-radius: 8px; border: 1.5px solid var(--border-300, #cbd5e1); display: inline-block;" />
-        </td>
-        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
-          <button type="button" class="btn btn-danger btn-remove-op" data-code="${op.usucod}" style="padding: 6px 10px; font-size: 0.8rem; border-radius: 8px;">Quitar</button>
-        </td>
-      `;
-
-      // Listeners for Quantity and VU manual entries
-      const qtyInput = tr.querySelector('.op-qty-input');
-      qtyInput.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value || 0, 10);
-        op.cantidad = val;
-        recalculateWorkerValues();
-      });
-
-      const vuInput = tr.querySelector('.op-vu-input');
-      vuInput.addEventListener('input', (e) => {
-        const val = parseFloat(e.target.value || 0);
-        op.vu = val;
-      });
-
-      // Remove worker
-      tr.querySelector('.btn-remove-op').addEventListener('click', () => {
-        selectedOperarios.delete(op.usucod);
-        renderSelectedOperarios();
-        recalculateWorkerValues();
-      });
-
-      operariosTbody.appendChild(tr);
+      const c = op.costuraNum || startCostura;
+      costuraCounts[c] = (costuraCounts[c] || 0) + 1;
+      if (c < minCostura) minCostura = c;
+      if (c > maxCostura) maxCostura = c;
     });
 
-    // Check case to toggle VU visibility/editability in table
+    // Ordenar operarios por número de costura
+    const sortedWorkers = Array.from(selectedOperarios.values()).sort((a, b) => {
+      const ca = a.costuraNum || startCostura;
+      const cb = b.costuraNum || startCostura;
+      if (ca !== cb) return ca - cb;
+      return 0;
+    });
+
+    // Renderizar por cada número de costura desde minCostura hasta maxCostura
+    for (let c = minCostura; c <= maxCostura; c++) {
+      const workersInC = sortedWorkers.filter(w => (w.costuraNum || startCostura) === c);
+
+      if (workersInC.length === 0) {
+        // Fila para costura vacía que actúa como destino (drop target) de arrastre
+        const emptyTr = document.createElement('tr');
+        emptyTr.className = 'row-costura-empty';
+        emptyTr.dataset.costura = String(c);
+        emptyTr.style.background = '#fffbeb';
+        emptyTr.style.border = '1.5px dashed #f59e0b';
+        emptyTr.innerHTML = `
+          <td colspan="5" style="padding: 7px 12px; font-size: 0.82rem; color: #b45309; text-align: center; vertical-align: middle;">
+            <strong>Costura #${c}:</strong> Sin operario asignado &mdash; <span style="color: #92400e;">arrastre un operario aquí o asígnelo con el selector</span>
+          </td>
+        `;
+
+        emptyTr.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          emptyTr.style.background = '#fef3c7';
+          emptyTr.style.outline = '2px dashed #d97706';
+        });
+        emptyTr.addEventListener('dragleave', () => {
+          emptyTr.style.background = '#fffbeb';
+          emptyTr.style.outline = 'none';
+        });
+        emptyTr.addEventListener('drop', (e) => {
+          e.preventDefault();
+          emptyTr.style.background = '#fffbeb';
+          emptyTr.style.outline = 'none';
+          const code = draggedWorkerCode || e.dataTransfer.getData('text/plain');
+          if (code && selectedOperarios.has(code)) {
+            const op = selectedOperarios.get(code);
+            op.costuraNum = c;
+            recalculateWorkerValues();
+            renderSelectedOperarios();
+            saveFormDraft();
+          }
+        });
+
+        operariosTbody.appendChild(emptyTr);
+        continue;
+      }
+
+      // Renderizar filas de los operarios de esta costura
+      workersInC.forEach(op => {
+        const tr = document.createElement('tr');
+        tr.className = 'op-drag-row';
+        tr.setAttribute('draggable', 'true');
+        tr.dataset.code = op.usucod;
+        tr.dataset.costura = String(op.costuraNum || c);
+
+        const isShared = workersInC.length > 1;
+        const formattedVu = op.vu > 0 ? (Number.isInteger(op.vu) ? op.vu : parseFloat(op.vu.toFixed(2))) : '';
+
+        // Opciones del selector de costura (solo números minCostura..maxCostura)
+        let optionsHtml = '';
+        for (let num = minCostura; num <= maxCostura; num++) {
+          optionsHtml += `<option value="${num}" ${num === c ? 'selected' : ''}>${num}</option>`;
+        }
+
+        tr.innerHTML = `
+          <td style="vertical-align: middle; padding: 6px 8px; white-space: nowrap;">
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span class="drag-handle" title="Mantenga presionado para arrastrar y agrupar en otra costura">⋮⋮</span>
+              <select class="input op-costura-select" data-code="${op.usucod}" style="width: 58px; height: 32px; padding: 2px 4px; font-weight: 800; font-size: 0.88rem; text-align: center; border-radius: 8px; display: inline-block; vertical-align: middle; background: ${isShared ? '#fef3c7' : '#f0fdf4'}; border-color: ${isShared ? '#f59e0b' : '#22c55e'}; color: ${isShared ? '#92400e' : '#15803d'}; cursor: pointer;">
+                ${optionsHtml}
+              </select>
+              ${isShared ? `<span class="badge" style="background: #fef3c7; color: #b45309; font-size: 0.7rem; font-weight: 800; padding: 2px 4px; border-radius: 4px;" title="Costura compartida entre ${workersInC.length} operarios">½</span>` : ''}
+            </div>
+          </td>
+          <td style="font-weight: 800; color: var(--brand-900); font-size: 0.85rem; padding: 8px 6px; vertical-align: middle;">${op.usucod}</td>
+          <td style="padding: 8px 6px; white-space: normal; vertical-align: middle; min-width: 140px;">${formatWorkerName(op.usunom)}</td>
+          <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
+            <input type="number" class="input op-vu-input" data-code="${op.usucod}" min="0" step="0.01" value="${formattedVu}" style="width: 76px; height: 34px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900); border-radius: 8px; border: 1.5px solid var(--border-300); display: inline-block;" />
+          </td>
+          <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
+            <button type="button" class="btn btn-danger btn-remove-op" data-code="${op.usucod}" style="padding: 5px 9px; font-size: 0.78rem; border-radius: 8px;">Quitar</button>
+          </td>
+        `;
+
+        // Selector listener para mover de costura
+        const costuraSel = tr.querySelector('.op-costura-select');
+        costuraSel.addEventListener('change', (e) => {
+          op.costuraNum = parseInt(e.target.value, 10);
+          recalculateWorkerValues();
+          renderSelectedOperarios();
+          saveFormDraft();
+        });
+
+        // VU manual entry listener
+        const vuInput = tr.querySelector('.op-vu-input');
+        vuInput.addEventListener('input', (e) => {
+          op.vu = parseFloat(e.target.value || 0);
+          saveFormDraft();
+        });
+
+        // Quitar listener
+        tr.querySelector('.btn-remove-op').addEventListener('click', () => {
+          selectedOperarios.delete(op.usucod);
+          modalSelectedCodes = modalSelectedCodes.filter(code => code !== op.usucod);
+          recalculateWorkerValues();
+          renderSelectedOperarios();
+          saveFormDraft();
+        });
+
+        // Drag and drop listeners on row
+        tr.addEventListener('dragstart', (e) => {
+          draggedWorkerCode = op.usucod;
+          e.dataTransfer.setData('text/plain', op.usucod);
+          e.dataTransfer.effectAllowed = 'move';
+          tr.classList.add('dragging');
+        });
+
+        tr.addEventListener('dragend', () => {
+          draggedWorkerCode = null;
+          tr.classList.remove('dragging');
+          operariosTbody.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+        });
+
+        tr.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          tr.classList.add('drag-over');
+        });
+
+        tr.addEventListener('dragleave', () => {
+          tr.classList.remove('drag-over');
+        });
+
+        tr.addEventListener('drop', (e) => {
+          e.preventDefault();
+          tr.classList.remove('drag-over');
+          const sourceCode = draggedWorkerCode || e.dataTransfer.getData('text/plain');
+          if (sourceCode && sourceCode !== op.usucod && selectedOperarios.has(sourceCode)) {
+            const sourceOp = selectedOperarios.get(sourceCode);
+            sourceOp.costuraNum = op.costuraNum || c;
+            recalculateWorkerValues();
+            renderSelectedOperarios();
+            saveFormDraft();
+          }
+        });
+
+        operariosTbody.appendChild(tr);
+      });
+    }
+
+    // Toggle VU inputs for Jornal
     const config = getCurrentLocationConfig();
     const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
     const vuInputs = operariosTbody.querySelectorAll('.op-vu-input');
@@ -565,8 +975,9 @@
   }
 
   /**
-   * Recalculates unit values proportionally based on duplicate seams/quantities entered.
-   * Rule FISA: "Si selecciono en Cantidad # una misma Costura, el VU debe dividirse entre la cantidad de Operarios que la contienen. El campo VU se puede Editar."
+   * Recalculates unit values proportionally per costura.
+   * Regla FISA: El VU ingresado es por cada Costura individual.
+   * Si 2 o más operarios están asignados a la misma costura, el VU de esa costura se divide equitativamente.
    */
   function recalculateWorkerValues() {
     const config = getCurrentLocationConfig();
@@ -575,37 +986,36 @@
     if (isJornal) {
       selectedOperarios.forEach(op => {
         op.vu = 0;
+        op.cantidad = 1;
       });
       updateVuFieldsInTable();
       return;
     }
 
-    // VU total de la cabecera
+    // VU de cada costura individual
     let headerVuRaw = inputVuIngresar ? inputVuIngresar.value.trim() : '';
-    let totalVu = 0;
+    let vuPorCostura = 0;
     if (headerVuRaw !== '') {
-      totalVu = parseFloat(headerVuRaw) || 0;
+      vuPorCostura = parseFloat(headerVuRaw) || 0;
     } else if (config && config.valorUnitario !== null && config.valorUnitario !== undefined) {
-      totalVu = parseFloat(config.valorUnitario) || 0;
+      vuPorCostura = parseFloat(config.valorUnitario) || 0;
     }
 
     if (selectedOperarios.size === 0) return;
 
-    // Contar ocurrencias de cada número de cantidad / costura (#)
-    const qtyCounts = {};
+    // Contar cuántos operarios tiene cada costura
+    const costuraCounts = {};
     selectedOperarios.forEach(op => {
-      const qty = op.cantidad || 1;
-      qtyCounts[qty] = (qtyCounts[qty] || 0) + 1;
+      const c = op.costuraNum || 1;
+      costuraCounts[c] = (costuraCounts[c] || 0) + 1;
     });
 
-    // Recalcular VU para cada operario según las costuras compartidas
+    // Dividir el VU de la costura equitativamente entre sus operarios
     selectedOperarios.forEach(op => {
-      const qty = op.cantidad || 1;
-      const count = qtyCounts[qty] || 1;
-      
-      // VU se divide entre la cantidad de operarios que comparten la misma costura/cantidad
-      // Si solo hay 1 operario, recibe el totalVu completo
-      op.vu = totalVu > 0 ? (totalVu / count) : 0;
+      const c = op.costuraNum || 1;
+      const count = costuraCounts[c] || 1;
+      op.cantidad = 1;
+      op.vu = vuPorCostura > 0 ? (vuPorCostura / count) : 0;
     });
 
     updateVuFieldsInTable();
@@ -616,7 +1026,7 @@
       const input = operariosTbody.querySelector(`.op-vu-input[data-code="${op.usucod}"]`);
       if (input) {
         if (op.vu > 0) {
-          input.value = Number.isInteger(op.vu) ? op.vu : parseFloat(op.vu.toFixed(4));
+          input.value = Number.isInteger(op.vu) ? op.vu : parseFloat(op.vu.toFixed(2));
         } else {
           input.value = '';
         }
@@ -638,24 +1048,23 @@
 
   // --- Submit & Reset Form ---
 
-  async function handleSubmit(e) {
-    if (e) e.preventDefault();
+  async function handleSubmit() {
     hideAlert();
 
     if (!activeOt) {
-      showAlert('POR FAVOR SELECCIONE UNA ORDEN DE TRABAJO', 'error');
-      return;
-    }
-
-    const ubicod = selectUbicacion.value;
-    if (!ubicod) {
-      showAlert('POR FAVOR SELECCIONE UNA UBICACIÓN', 'error');
+      showAlert('POR FAVOR SELECCIONE UNA ORDEN DE TRABAJO (OT)', 'error');
       return;
     }
 
     const config = getCurrentLocationConfig();
     const isDestajo = radioDestajo && radioDestajo.checked;
     const tiptra = isDestajo ? 'D' : 'J';
+
+    const ubicod = selectUbicacion ? selectUbicacion.value : '';
+    if (!ubicod) {
+      showAlert('POR FAVOR SELECCIONE UNA UBICACIÓN', 'error');
+      return;
+    }
 
     // Lote checks
     const loteVal = selectLote.value;
@@ -664,52 +1073,52 @@
       return;
     }
 
-    const cantidadIngresar = parseFloat(inputCantidadIngresar.value || 0);
     const vuIngresar = parseFloat(inputVuIngresar.value || 0);
-
-    if (cantidadIngresar <= 0) {
-      showAlert('LA CANTIDAD A INGRESAR DEBE SER MAYOR A CERO', 'error');
-      return;
-    }
 
     if (selectedOperarios.size === 0) {
       showAlert('DEBE ASIGNAR AL MENOS UN OPERARIO', 'error');
       return;
     }
 
-    // Sum validation checks
-    let sumQuantities = 0;
-    let sumVus = 0;
-    const workersList = [];
+    const prevCosturas = getSelectedLotPrevCosturas();
+    const startCostura = prevCosturas + 1;
 
-    let qtyValidationError = false;
+    // Obtener las costuras cubiertas por los operarios asignados
+    const coveredCosturas = new Set();
     selectedOperarios.forEach(op => {
-      if (op.cantidad <= 0) {
-        qtyValidationError = true;
-      }
-      sumQuantities += op.cantidad;
-      sumVus += op.vu;
-      workersList.push({
-        usucod: op.usucod,
-        cantidad: op.cantidad,
-        vu: op.vu
-      });
+      if (op.costuraNum) coveredCosturas.add(op.costuraNum);
     });
 
-    if (qtyValidationError) {
-      showAlert('LAS CANTIDADES (#) DE LOS OPERARIOS DEBEN SER MAYOR A CERO', 'error');
+    const sortedCovered = Array.from(coveredCosturas).sort((a, b) => a - b);
+    const firstCovered = sortedCovered[0];
+    const lastCovered = sortedCovered[sortedCovered.length - 1];
+
+    // Validar que no hayan costuras intermedias vacías entre la primera y la última cubierta
+    const missingIntermediate = [];
+    for (let c = firstCovered; c <= lastCovered; c++) {
+      if (!coveredCosturas.has(c)) {
+        missingIntermediate.push(c);
+      }
+    }
+
+    if (missingIntermediate.length > 0) {
+      showAlert(`ATENCIÓN: LA(S) COSTURA(S) INTERMEDIA(S) #${missingIntermediate.join(', #')} NO TIENEN OPERARIOS ASIGNADOS. POR FAVOR ASIGNE O REUBIQUE OPERARIOS PARA COMPLETAR LA SERIE.`, 'error');
       return;
     }
 
-    if (sumQuantities > cantidadIngresar) {
-      showAlert(`LA SUMA DE CANTIDADES (#) DE OPERARIOS (${sumQuantities}) NO DEBE EXCEDER EL TOTAL DE LA CANTIDAD A INGRESAR (${cantidadIngresar})`, 'error');
-      return;
-    }
+    // Cantidad efectiva de costuras que se ingresan en este registro
+    const cantidadIngresar = coveredCosturas.size;
 
-    if (tiptra !== 'J' && sumVus > vuIngresar) {
-      showAlert(`LA SUMA DE VU DE OPERARIOS (${sumVus.toFixed(2)}) SUPERA EL VALOR UNITARIO CONFIGURADO (${vuIngresar.toFixed(2)})`, 'error');
-      return;
-    }
+    const workersList = [];
+    selectedOperarios.forEach(op => {
+      workersList.push({
+        usucod: op.usucod,
+        cantidad: 1,
+        vu: op.vu,
+        valor_unitario: op.vu,
+        costuraNum: op.costuraNum || startCostura
+      });
+    });
 
     // Call backend API REST
     showAlert('Guardando registro en base de datos...', 'info');
@@ -734,8 +1143,35 @@
         body: JSON.stringify(payload)
       });
 
-      // Limpiar inmediatamente todo el formulario
-      handleCancel();
+      // =========================================================================
+      // REQUERIMIENTO FISA: "luego de poner a los operarios y todo y darle ya a aceptar
+      // no quiero que se limpie todo quiero que se quede todo excepto la lista de operarios"
+      // =========================================================================
+      selectedOperarios.clear();
+      modalSelectedCodes = [];
+      renderSelectedOperarios();
+      recalculateWorkerValues();
+
+      // Recargar lista de lotes por si el lote producido ya no está pendiente
+      if (activeOt) {
+        const currentUbicod = selectUbicacion ? selectUbicacion.value : null;
+        const currentLot = selectLote ? selectLote.value : null;
+        await loadLotes(activeOt, currentUbicod);
+        if (currentLot && selectLote.querySelector(`option[value="${currentLot}"]`)) {
+          selectLote.value = currentLot;
+        } else if (selectLote.options.length > 1) {
+          selectLote.selectedIndex = 1;
+        } else {
+          selectLote.value = '';
+        }
+        if (selectLote && selectLote._searchableInstance && typeof selectLote._searchableInstance.sync === 'function') {
+          selectLote._searchableInstance.sync();
+        }
+        handleLoteChange();
+      }
+
+      // Actualizar borrador guardado en localStorage (sin los operarios)
+      saveFormDraft();
 
       // Mostrar mensaje solicitado
       showAlert('Grabado Correctamente', 'success');
@@ -756,8 +1192,10 @@
   function handleCancel() {
     activeOt = null;
     activeProduct = null;
+    currentOtDetails = null;
     locationsConfig = {};
     selectedOperarios.clear();
+    modalSelectedCodes = [];
 
     inputOt.value = '';
     filterLocationsByTipoTrabajo();
@@ -771,6 +1209,177 @@
     
     resetUbicacionFields();
     hideAlert();
+    clearFormDraft();
+  }
+
+  // --- PERSISTENCIA DE BORRADOR ANTE ACTUALIZACIÓN (F5) ---
+
+  function saveFormDraft() {
+    try {
+      if (!activeOt && selectedOperarios.size === 0 && !inputOt.value.trim()) {
+        clearFormDraft();
+        return;
+      }
+
+      const draft = {
+        activeOt,
+        otInputVal: inputOt.value,
+        activeProduct,
+        currentOtDetails,
+        tiptra: (radioJornal && radioJornal.checked) ? 'J' : 'D',
+        ubicod: selectUbicacion ? selectUbicacion.value : '',
+        lotcod: selectLote ? selectLote.value : '',
+        cantidadIngresar: inputCantidadIngresar ? inputCantidadIngresar.value : '',
+        vuIngresar: inputVuIngresar ? inputVuIngresar.value : '',
+        workers: Array.from(selectedOperarios.values()),
+        modalSelectedCodes: modalSelectedCodes || []
+      };
+
+      localStorage.setItem('fisa_chancay_produccion_draft', JSON.stringify(draft));
+    } catch (err) {
+      console.warn('Error guardando borrador:', err);
+    }
+  }
+
+  function clearFormDraft() {
+    try {
+      localStorage.removeItem('fisa_chancay_produccion_draft');
+    } catch (e) {}
+  }
+
+  async function restoreFormDraft() {
+    try {
+      const raw = localStorage.getItem('fisa_chancay_produccion_draft');
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (!draft || (!draft.activeOt && !draft.otInputVal)) return;
+
+      // 1. Restaurar tipo de trabajo
+      if (draft.tiptra === 'J' && radioJornal) {
+        radioJornal.checked = true;
+        if (radioDestajo) radioDestajo.checked = false;
+      } else if (radioDestajo) {
+        radioDestajo.checked = true;
+        if (radioJornal) radioJornal.checked = false;
+      }
+
+      // 2. Restaurar Orden de Trabajo si existía
+      const otToRestore = draft.activeOt || draft.otInputVal;
+      if (otToRestore) {
+        activeOt = otToRestore;
+        inputOt.value = otToRestore;
+
+        if (draft.currentOtDetails) {
+          currentOtDetails = draft.currentOtDetails;
+          activeProduct = currentOtDetails.procod;
+          lblProcod.textContent = currentOtDetails.procod || '---';
+          lblPronom.textContent = currentOtDetails.pronom || '---';
+          lblCanreq.textContent = `${currentOtDetails.canreq} ${currentOtDetails.univen || ''}`;
+        } else {
+          try {
+            const data = await window.AppFetch(`/api/produccion/ots?q=${encodeURIComponent(otToRestore)}`);
+            if (Array.isArray(data) && data.length > 0) {
+              const match = data.find(o => o.otcod.trim() === otToRestore.trim()) || data[0];
+              currentOtDetails = match;
+              activeProduct = match.procod;
+              lblProcod.textContent = match.procod || '---';
+              lblPronom.textContent = match.pronom || '---';
+              lblCanreq.textContent = `${match.canreq} ${match.univen || ''}`;
+            }
+          } catch (e) {
+            console.warn('Error recargando detalles de OT:', e);
+          }
+        }
+
+        // Cargar lotes y configuraciones
+        await loadLotes(otToRestore);
+        if (activeProduct) {
+          try {
+            locationsConfig = await window.AppFetch(`/api/produccion/ubicaciones/producto/${encodeURIComponent(activeProduct)}`);
+          } catch (e) {
+            locationsConfig = {};
+          }
+        }
+
+        // Filtrar ubicaciones preservando la ubicación que tenía seleccionada
+        filterLocationsByTipoTrabajo(draft.ubicod);
+
+        // 3. Restaurar Ubicación seleccionada
+        if (draft.ubicod && selectUbicacion) {
+          selectUbicacion.value = draft.ubicod;
+          if (selectUbicacion && selectUbicacion._searchableInstance && typeof selectUbicacion._searchableInstance.sync === 'function') {
+            selectUbicacion._searchableInstance.sync();
+          }
+          handleUbicacionChange();
+        }
+
+        // Cargar lotes específicos para la ubicación restaurada (o general si no hay)
+        await loadLotes(otToRestore, draft.ubicod || (selectUbicacion ? selectUbicacion.value : null));
+
+        // 4. Restaurar Lote seleccionado si sigue pendiente en esta ubicación
+        if (draft.lotcod && selectLote && selectLote.querySelector(`option[value="${draft.lotcod}"]`)) {
+          selectLote.value = draft.lotcod;
+          if (selectLote && selectLote._searchableInstance && typeof selectLote._searchableInstance.sync === 'function') {
+            selectLote._searchableInstance.sync();
+          }
+          handleLoteChange();
+        } else if (selectLote && selectLote.options.length > 1) {
+          selectLote.selectedIndex = 1;
+          if (selectLote && selectLote._searchableInstance && typeof selectLote._searchableInstance.sync === 'function') {
+            selectLote._searchableInstance.sync();
+          }
+          handleLoteChange();
+        } else if (selectLote) {
+          selectLote.value = '';
+          if (selectLote && selectLote._searchableInstance && typeof selectLote._searchableInstance.sync === 'function') {
+            selectLote._searchableInstance.sync();
+          }
+          handleLoteChange();
+        }
+      }
+
+      // 5. Restaurar Cantidad y VU
+      if (draft.cantidadIngresar && inputCantidadIngresar) {
+        inputCantidadIngresar.value = draft.cantidadIngresar;
+      }
+      if (draft.vuIngresar && inputVuIngresar) {
+        inputVuIngresar.value = draft.vuIngresar;
+      }
+
+      // 6. Restaurar Operarios
+      if (Array.isArray(draft.workers) && draft.workers.length > 0) {
+        selectedOperarios.clear();
+        // Si todos los operarios vinieron con costuraNum = 1 por el borrador anterior y hay múltiples, redistribuir secuencialmente
+        const allOnCosturaOne = draft.workers.length > 1 && draft.workers.every(w => (w.costuraNum || 1) === 1);
+        const cantCosturasDraft = parseInt(draft.cantidadIngresar || 0, 10) || 0;
+
+        draft.workers.forEach((w, idx) => {
+          let cNum = w.costuraNum || 1;
+          if (allOnCosturaOne && (cantCosturasDraft > 1 || !cantCosturasDraft)) {
+            cNum = (cantCosturasDraft > 0 && idx >= cantCosturasDraft) ? cantCosturasDraft : (idx + 1);
+          }
+          selectedOperarios.set(w.usucod, {
+            usucod: w.usucod,
+            usunom: w.usunom,
+            costuraNum: cNum,
+            cantidad: 1,
+            vu: w.vu
+          });
+        });
+        modalSelectedCodes = Array.isArray(draft.modalSelectedCodes) && draft.modalSelectedCodes.length > 0 
+          ? draft.modalSelectedCodes 
+          : draft.workers.map(w => w.usucod);
+
+        recalculateWorkerValues();
+        renderSelectedOperarios();
+      }
+
+      if (btnAgregarOperario && activeOt && selectUbicacion && selectUbicacion.value) {
+        btnAgregarOperario.disabled = false;
+      }
+    } catch (err) {
+      console.error('Error restaurando borrador de producción:', err);
+    }
   }
 
 })();

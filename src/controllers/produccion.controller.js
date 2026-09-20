@@ -42,7 +42,8 @@ async function apiObtenerDetallesOt(req, res, next) {
 async function apiObtenerLotesOt(req, res, next) {
   try {
     const { otcod } = req.params;
-    const list = await produccionService.obtenerLotesOt(otcod);
+    const { ubicod } = req.query;
+    const list = await produccionService.obtenerLotesOt(otcod, ubicod);
     return res.json(list);
   } catch (err) {
     next(err);
