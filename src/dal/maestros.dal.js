@@ -26,6 +26,11 @@ async function crearUnidad(data, actor) {
      IF @next_unicod IS NULL OR @next_unicod = '000'
        SET @next_unicod = '001';
 
+     IF @unidef = 1
+     BEGIN
+       UPDATE FTALLER.dbo.PAR_UNIDAD SET unidef = 0 WHERE empcod = '01';
+     END
+
      INSERT INTO FTALLER.dbo.PAR_UNIDAD 
      (empcod, unicod, uninom, unides, unistd, unidef, codusucre, fecusucre)
      VALUES 
@@ -44,7 +49,12 @@ async function crearUnidad(data, actor) {
 async function editarUnidad(unicod, data, actor) {
   const { uninom, unides, unistd, unidef } = data;
   await db.query(
-    `UPDATE FTALLER.dbo.PAR_UNIDAD 
+    `IF @unidef = 1
+     BEGIN
+       UPDATE FTALLER.dbo.PAR_UNIDAD SET unidef = 0 WHERE empcod = '01' AND unicod <> @unicod;
+     END
+
+     UPDATE FTALLER.dbo.PAR_UNIDAD 
      SET uninom = @uninom, 
          unides = @unides, 
          unistd = @unistd, 
@@ -125,6 +135,11 @@ async function crearUbicacion(data, actor) {
      IF @next_ubicod IS NULL OR @next_ubicod = '00000'
        SET @next_ubicod = '00001';
 
+     IF @ubidef = 1
+     BEGIN
+       UPDATE FTALLER.dbo.PAR_UBICACION SET ubidef = 0 WHERE empcod = '01';
+     END
+
      INSERT INTO FTALLER.dbo.PAR_UBICACION 
      (empcod, ubicod, ubinom, ubides, ubistd, ubidef, unicod, tiptra, ubiuni, codusucre, fecusucre)
      VALUES 
@@ -146,7 +161,12 @@ async function crearUbicacion(data, actor) {
 async function editarUbicacion(ubicod, data, actor) {
   const { ubinom, ubides, ubistd, ubidef, unicod, tiptra, ubiuni } = data;
   await db.query(
-    `UPDATE FTALLER.dbo.PAR_UBICACION 
+    `IF @ubidef = 1
+     BEGIN
+       UPDATE FTALLER.dbo.PAR_UBICACION SET ubidef = 0 WHERE empcod = '01' AND ubicod <> @ubicod;
+     END
+
+     UPDATE FTALLER.dbo.PAR_UBICACION 
      SET ubinom = @ubinom, 
          ubides = @ubides, 
          ubistd = @ubistd, 
@@ -407,7 +427,12 @@ async function crearTercera(data, actor) {
   }
 
   await db.query(
-    `INSERT INTO FTALLER.dbo.PAR_TERCERA 
+    `IF @terdef = 1
+     BEGIN
+       UPDATE FTALLER.dbo.PAR_TERCERA SET terdef = 0 WHERE empcod = '01';
+     END
+
+     INSERT INTO FTALLER.dbo.PAR_TERCERA 
      (empcod, tercod, ternom, terdes, terstd, terdef, codusucre, fecusucre)
      VALUES 
      ('01', @tercod, @ternom, @terdes, @terstd, @terdef, @actor, GETDATE())`,
@@ -426,7 +451,12 @@ async function crearTercera(data, actor) {
 async function editarTercera(tercod, data, actor) {
   const { ternom, terdes, terstd, terdef } = data;
   await db.query(
-    `UPDATE FTALLER.dbo.PAR_TERCERA 
+    `IF @terdef = 1
+     BEGIN
+       UPDATE FTALLER.dbo.PAR_TERCERA SET terdef = 0 WHERE empcod = '01' AND tercod <> @tercod;
+     END
+
+     UPDATE FTALLER.dbo.PAR_TERCERA 
      SET ternom = @ternom, 
          terdes = @terdes, 
          terstd = @terstd, 
