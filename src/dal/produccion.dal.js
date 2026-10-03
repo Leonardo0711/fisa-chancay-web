@@ -207,7 +207,8 @@ async function obtenerConfigUbicacionProducto(procod) {
 }
 
 /**
- * Lists workers from VIEW_PRD_TALLER_TRABAJADORES_D or VIEW_PRD_TALLER_TRABAJADORES_J view in eSolver database (.222).
+ * Lists workers from VIEW_PRD_TALLER_TRABAJADORES_D or VIEW_PRD_TALLER_TRABAJADORES_J view in eSolver database (.222),
+ * combined via UNION ALL with active third-party companies from FTALLER.dbo.PAR_TERCERA.
  */
 async function listarOperarios(tiptra = 'D') {
   const isJornal = String(tiptra).toUpperCase() === 'J';
@@ -223,12 +224,34 @@ async function listarOperarios(tiptra = 'D') {
      ORDER BY traraz`
   );
 
-  return res.recordset.map(row => ({
+  const operarios = res.recordset.map(row => ({
     usucod: row.tracod,
     usunom: row.traraz,
     usutip: 'O',
     cargo: row.ctranom || 'OPERARIO'
   }));
+
+  // UNION ALL con PAR_TERCERA (Empresas Terceras activas en FTALLER)
+  try {
+    const resTerceras = await db.query(
+      `SELECT RTRIM(tercod) AS tracod, RTRIM(ternom) AS traraz, 'TER' AS ctracod, COALESCE(NULLIF(RTRIM(terdes),''), 'EMPRESA TERCERA') AS ctranom
+       FROM FTALLER.dbo.PAR_TERCERA
+       WHERE terstd = 1 AND codusuanu IS NULL
+       ORDER BY ternom`
+    );
+
+    const terceras = resTerceras.recordset.map(row => ({
+      usucod: row.tracod,
+      usunom: row.traraz,
+      usutip: 'T',
+      cargo: row.ctranom || 'EMPRESA TERCERA'
+    }));
+
+    return [...operarios, ...terceras];
+  } catch (err) {
+    console.error('Error al listar empresas terceras para operarios:', err.message);
+    return operarios;
+  }
 }
 
 /**
@@ -279,6 +302,20 @@ async function getWorkersDictionary() {
     res.recordset.forEach(r => {
       map[r.tracod] = r.traraz;
     });
+
+    // Cargar también empresas terceras de FTALLER para mapear tercod -> ternom
+    try {
+      const resTerceras = await db.query(`
+        SELECT RTRIM(tercod) AS tracod, RTRIM(ternom) AS traraz
+        FROM FTALLER.dbo.PAR_TERCERA
+      `);
+      resTerceras.recordset.forEach(r => {
+        map[r.tracod] = r.traraz;
+      });
+    } catch (e) {
+      console.error('Error al cargar empresas terceras en diccionario:', e.message);
+    }
+
     workersCache = map;
     workersCacheTime = now;
     return map;
@@ -480,6 +517,8 @@ module.exports = {
   ejecutarControlProduccion,
   listarRegistrosProduccion,
   obtenerDetalleRegistroProduccion,
-  obtenerRegistrosCompletosParaExportar
+  obtenerRegistrosCompletosParaExportar,
+  getWorkersDictionary
 };
+
 

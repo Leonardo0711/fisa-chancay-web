@@ -366,6 +366,120 @@ async function cambiarEstadoUbicacion(ubicod, estado, actor) {
   return true;
 }
 
+// --- EMPRESAS TERCERAS ---
+
+async function listarTerceras() {
+  const res = await db.query(
+    `SELECT RTRIM(tercod) AS tercod, RTRIM(ternom) AS ternom, RTRIM(terdes) AS terdes,
+            terstd, terdef,
+            RTRIM(codusucre) AS codusucre, fecusucre, 
+            RTRIM(codusumod) AS codusumod, fecusumod, 
+            RTRIM(codusuanu) AS codusuanu, fecusuanu
+     FROM FTALLER.dbo.PAR_TERCERA
+     ORDER BY tercod`
+  );
+  return res.recordset;
+}
+
+async function obtenerNextCodeTercera() {
+  const res = await db.query(
+    `SELECT RIGHT('00000' + CAST(COALESCE(MAX(CAST(CASE WHEN ISNUMERIC(tercod) = 1 THEN tercod ELSE '0' END AS INT)), 0) + 1 AS VARCHAR(5)), 5) AS nextCode
+     FROM FTALLER.dbo.PAR_TERCERA`
+  );
+  const nextVal = res.recordset[0] ? res.recordset[0].nextCode : null;
+  return nextVal || '00001';
+}
+
+async function crearTercera(data, actor) {
+  const { tercod, ternom, terdes, terstd, terdef } = data;
+  let finalCode = (tercod || '').trim();
+  if (!finalCode) {
+    finalCode = await obtenerNextCodeTercera();
+  }
+
+  // Verificar si ya existe
+  const existCheck = await db.query(
+    `SELECT 1 FROM FTALLER.dbo.PAR_TERCERA WHERE empcod = '01' AND tercod = @tercod`,
+    { tercod: finalCode }
+  );
+  if (existCheck.recordset.length > 0) {
+    throw new Error(`Ya existe una empresa tercera con el código ${finalCode}.`);
+  }
+
+  await db.query(
+    `INSERT INTO FTALLER.dbo.PAR_TERCERA 
+     (empcod, tercod, ternom, terdes, terstd, terdef, codusucre, fecusucre)
+     VALUES 
+     ('01', @tercod, @ternom, @terdes, @terstd, @terdef, @actor, GETDATE())`,
+    {
+      tercod: finalCode,
+      ternom: (ternom || '').trim(),
+      terdes: (terdes || '').trim(),
+      terstd: terstd ? 1 : 0,
+      terdef: terdef ? 1 : 0,
+      actor
+    }
+  );
+  return { tercod: finalCode };
+}
+
+async function editarTercera(tercod, data, actor) {
+  const { ternom, terdes, terstd, terdef } = data;
+  await db.query(
+    `UPDATE FTALLER.dbo.PAR_TERCERA 
+     SET ternom = @ternom, 
+         terdes = @terdes, 
+         terstd = @terstd, 
+         terdef = @terdef, 
+         codusumod = @actor, 
+         fecusumod = GETDATE()
+     WHERE empcod = '01' AND tercod = @tercod`,
+    {
+      tercod: tercod.trim(),
+      ternom: (ternom || '').trim(),
+      terdes: (terdes || '').trim(),
+      terstd: terstd ? 1 : 0,
+      terdef: terdef ? 1 : 0,
+      actor
+    }
+  );
+  return true;
+}
+
+async function cambiarEstadoTercera(tercod, estado, actor) {
+  const terstd = estado ? 1 : 0;
+  await db.query(
+    `UPDATE FTALLER.dbo.PAR_TERCERA 
+     SET terstd = @terstd, 
+         codusumod = @actor, 
+         fecusumod = GETDATE(),
+         codusuanu = CASE WHEN @terstd = 0 THEN @actor ELSE NULL END,
+         fecusuanu = CASE WHEN @terstd = 0 THEN GETDATE() ELSE NULL END
+     WHERE empcod = '01' AND tercod = @tercod`,
+    { tercod: tercod.trim(), terstd, actor }
+  );
+  return true;
+}
+
+async function eliminarTercera(tercod, actor) {
+  const normCode = tercod.trim();
+
+  // Validar si está referenciada en TAL_CONTROL_PRODUCCION_DETALLE
+  const checkProd = await db.query(
+    `SELECT COUNT(1) AS count FROM FTALLER.dbo.TAL_CONTROL_PRODUCCION_DETALLE WHERE tracod = @tercod`,
+    { tercod: normCode }
+  );
+  if (checkProd.recordset[0] && checkProd.recordset[0].count > 0) {
+    throw new Error('No se puede borrar la Empresa Tercera porque ya cuenta con registros de producción asociados. En su lugar puede Anularla (Desactivarla).');
+  }
+
+  await db.query(
+    `DELETE FROM FTALLER.dbo.PAR_TERCERA WHERE empcod = '01' AND tercod = @tercod`,
+    { tercod: normCode }
+  );
+  return true;
+}
+
 module.exports = {
   listarUnidades,
   crearUnidad,
@@ -382,5 +496,12 @@ module.exports = {
   obtenerNextCodeUnidad,
   cambiarEstadoUnidad,
   obtenerNextCodeUbicacion,
-  cambiarEstadoUbicacion
+  cambiarEstadoUbicacion,
+  listarTerceras,
+  obtenerNextCodeTercera,
+  crearTercera,
+  editarTercera,
+  cambiarEstadoTercera,
+  eliminarTercera
 };
+

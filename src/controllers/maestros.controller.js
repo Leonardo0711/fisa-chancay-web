@@ -205,10 +205,85 @@ async function apiCambiarEstadoUbicacion(req, res, next) {
   }
 }
 
+// --- EMPRESAS TERCERAS ---
+
+async function renderTerceras(req, res, next) {
+  try {
+    res.render('maestros/terceras', {
+      title: 'Mantenimiento - Empresas Terceras',
+      path: '/maestros/terceras'
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiListarTerceras(req, res, next) {
+  try {
+    const list = await maestrosService.listarTerceras();
+    return res.json(list);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiObtenerNextCodeTercera(req, res, next) {
+  try {
+    const nextCode = await maestrosService.obtenerNextCodeTercera();
+    return res.json({ nextCode });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiCrearTercera(req, res, next) {
+  try {
+    const result = await maestrosService.crearTercera(req.body, req.user.usucod);
+    return res.json({ success: true, message: 'Empresa tercera creada correctamente.', tercod: result.tercod });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiEditarTercera(req, res, next) {
+  try {
+    const { tercod } = req.params;
+    await maestrosService.editarTercera(tercod, req.body, req.user.usucod);
+    return res.json({ success: true, message: 'Empresa tercera modificada correctamente.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiCambiarEstadoTercera(req, res, next) {
+  try {
+    const { tercod } = req.params;
+    const { estado } = req.body;
+    await maestrosService.cambiarEstadoTercera(tercod, estado, req.user.usucod);
+    const msg = estado ? 'EMPRESA TERCERA ACTIVADA' : 'EMPRESA TERCERA ANULADA';
+    return res.json({ success: true, message: msg });
+  } catch (err) {
+    err.userMessage = err.message;
+    next(err);
+  }
+}
+
+async function apiEliminarTercera(req, res, next) {
+  try {
+    const { tercod } = req.params;
+    await maestrosService.eliminarTercera(tercod, req.user.usucod);
+    return res.json({ success: true, message: 'Empresa tercera eliminada correctamente.' });
+  } catch (err) {
+    err.userMessage = err.message;
+    next(err);
+  }
+}
+
 module.exports = {
   renderUnidades,
   renderUbicaciones,
   renderUbicacionesProducto,
+  renderTerceras,
   apiListarUnidades,
   apiCrearUnidad,
   apiEditarUnidad,
@@ -220,9 +295,17 @@ module.exports = {
   apiListarUbicacionesProducto,
   apiCrearUbicacionProducto,
   apiEditarUbicacionProducto,
+  eliminarUbicacionProducto: apiEliminarUbicacionProducto,
   apiEliminarUbicacionProducto,
   apiObtenerNextCodeUnidad,
   apiCambiarEstadoUnidad,
   apiObtenerNextCodeUbicacion,
-  apiCambiarEstadoUbicacion
+  apiCambiarEstadoUbicacion,
+  apiListarTerceras,
+  apiObtenerNextCodeTercera,
+  apiCrearTercera,
+  apiEditarTercera,
+  apiCambiarEstadoTercera,
+  apiEliminarTercera
 };
+

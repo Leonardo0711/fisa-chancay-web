@@ -23,6 +23,7 @@ const requireAdmin = (req, res, next) => {
 router.get('/maestros/unidades', requireAuth, requireAdmin, maestrosController.renderUnidades);
 router.get('/maestros/ubicaciones', requireAuth, requireAdmin, maestrosController.renderUbicaciones);
 router.get('/maestros/ubicaciones-producto', requireAuth, requireAdmin, maestrosController.renderUbicacionesProducto);
+router.get('/maestros/terceras', requireAuth, requireAdmin, maestrosController.renderTerceras);
 
 // API Unidades
 router.get('/api/maestros/unidades', requireAuth, requireAdmin, maestrosController.apiListarUnidades);
@@ -46,4 +47,13 @@ router.post('/api/maestros/ubicaciones-producto', requireAuth, requireAdmin, mae
 router.put('/api/maestros/ubicaciones-producto/:procod/:ubicod', requireAuth, requireAdmin, maestrosController.apiEditarUbicacionProducto);
 router.delete('/api/maestros/ubicaciones-producto/:procod/:ubicod', requireAuth, requireAdmin, maestrosController.apiEliminarUbicacionProducto);
 
+// API Empresas Terceras
+router.get('/api/maestros/terceras', requireAuth, requireAdmin, maestrosController.apiListarTerceras);
+router.get('/api/maestros/terceras/next-code', requireAuth, requireAdmin, maestrosController.apiObtenerNextCodeTercera);
+router.post('/api/maestros/terceras', requireAuth, requireAdmin, maestrosController.apiCrearTercera);
+router.put('/api/maestros/terceras/:tercod', requireAuth, requireAdmin, maestrosController.apiEditarTercera);
+router.patch('/api/maestros/terceras/:tercod/status', requireAuth, requireAdmin, maestrosController.apiCambiarEstadoTercera);
+router.delete('/api/maestros/terceras/:tercod', requireAuth, requireAdmin, maestrosController.apiEliminarTercera);
+
 module.exports = router;
+

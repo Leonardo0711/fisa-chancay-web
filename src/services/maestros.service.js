@@ -128,6 +128,58 @@ async function cambiarEstadoUbicacion(ubicod, estado, actor) {
   return maestrosDal.cambiarEstadoUbicacion(ubicod, estado, actor);
 }
 
+// --- EMPRESAS TERCERAS ---
+
+async function listarTerceras() {
+  return maestrosDal.listarTerceras();
+}
+
+async function obtenerNextCodeTercera() {
+  return maestrosDal.obtenerNextCodeTercera();
+}
+
+async function crearTercera(data, actor) {
+  const { ternom, terdes, tercod } = data;
+  if (!ternom || ternom.trim().length === 0 || ternom.trim().length > 300) {
+    throw new Error('La razón social o nombre de la empresa tercera es obligatorio y debe tener máximo 300 caracteres.');
+  }
+  if (terdes && terdes.trim().length > 30) {
+    throw new Error('La descripción o giro debe tener máximo 30 caracteres.');
+  }
+  if (tercod && tercod.trim().length > 15) {
+    throw new Error('El código de la empresa tercera no puede exceder 15 caracteres.');
+  }
+  return maestrosDal.crearTercera(data, actor);
+}
+
+async function editarTercera(tercod, data, actor) {
+  if (!tercod) {
+    throw new Error('Código de empresa tercera no especificado.');
+  }
+  const { ternom, terdes } = data;
+  if (!ternom || ternom.trim().length === 0 || ternom.trim().length > 300) {
+    throw new Error('La razón social o nombre de la empresa tercera es obligatorio y debe tener máximo 300 caracteres.');
+  }
+  if (terdes && terdes.trim().length > 30) {
+    throw new Error('La descripción o giro debe tener máximo 30 caracteres.');
+  }
+  return maestrosDal.editarTercera(tercod, data, actor);
+}
+
+async function cambiarEstadoTercera(tercod, estado, actor) {
+  if (!tercod) {
+    throw new Error('Código de empresa tercera no especificado.');
+  }
+  return maestrosDal.cambiarEstadoTercera(tercod, estado, actor);
+}
+
+async function eliminarTercera(tercod, actor) {
+  if (!tercod) {
+    throw new Error('Código de empresa tercera no especificado.');
+  }
+  return maestrosDal.eliminarTercera(tercod, actor);
+}
+
 module.exports = {
   listarUnidades,
   crearUnidad,
@@ -144,5 +196,12 @@ module.exports = {
   obtenerNextCodeUnidad,
   cambiarEstadoUnidad,
   obtenerNextCodeUbicacion,
-  cambiarEstadoUbicacion
+  cambiarEstadoUbicacion,
+  listarTerceras,
+  obtenerNextCodeTercera,
+  crearTercera,
+  editarTercera,
+  cambiarEstadoTercera,
+  eliminarTercera
 };
+

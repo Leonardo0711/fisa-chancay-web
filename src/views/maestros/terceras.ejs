@@ -1,0 +1,97 @@
+<%- include('../partials/header') %>
+<section class="container page-fill" id="tercerasModule">
+  <h2 class="dashboard-title">Mantenimiento - Empresas Terceras</h2>
+
+  <div class="card card--stretch">
+    <!-- CABECERA DEL LISTADO -->
+    <div class="card__head">
+      <h3 class="card__title">Empresas Terceras</h3>
+    </div>
+
+    <div class="usr-stack" style="padding: var(--s3);">
+      <!-- LISTA (SCROLL INTERNO) -->
+      <div class="table-clip" style="border: 1px solid var(--border-200); border-radius: 12px; max-height: 250px;">
+        <table class="table table--grid" id="tercerasTable">
+          <thead>
+            <tr>
+              <th style="width: 120px;">Código</th>
+              <th>Razón Social / Nombre</th>
+              <th style="width: 220px;">Descripción / Giro</th>
+              <th style="width: 120px; text-align: center;">Estado</th>
+              <th style="width: 120px; text-align: center;">Por Defecto</th>
+            </tr>
+          </thead>
+          <tbody id="ter-tbody">
+            <tr class="row-empty"><td colspan="5">Cargando empresas terceras...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- FORMULARIO + BOTONERA LATERAL -->
+      <div class="form-row" style="border-top: 1px solid var(--border-200); padding-top: var(--s2); margin-top: var(--s2);">
+        <form id="terceraForm" class="form-body" novalidate style="display: flex; flex-direction: column; gap: var(--s2);">
+          <div class="form-grid-2-local">
+            <!-- Código auto-generado / editable para nuevo -->
+            <div class="field" id="f-tercod-container" style="flex: 0 0 140px;">
+              <label for="f-tercod">Código *</label>
+              <input type="text" id="f-tercod" name="tercod" class="input" style="font-weight: bold; background: var(--surface-100);" placeholder="Cargando..." maxlength="15" required />
+            </div>
+            
+            <div class="field" id="f-ternom-container" style="flex: 1;">
+              <label for="f-ternom">Razón Social / Nombre *</label>
+              <input type="text" id="f-ternom" name="ternom" class="input" placeholder="Ej. SERVICIOS INDUSTRIALES DEL NORTE S.A.C." required maxlength="300" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="f-terdes">Descripción / Giro</label>
+            <input type="text" id="f-terdes" name="terdes" class="input" placeholder="Ej. Servicios de costura externa" maxlength="30" />
+          </div>
+
+          <div class="form-grid-2-local">
+            <div class="field" style="flex: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); background: var(--surface-50); border: 1px solid var(--border-200); border-radius: 10px; padding: 8px 12px;">
+              <label for="f-terstd" style="font-weight: 500; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0; cursor: pointer;">¿Estado Activo?</label>
+              <input type="checkbox" id="f-terstd" name="terstd" class="switch" checked />
+            </div>
+            <div class="field" style="flex: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); background: var(--surface-50); border: 1px solid var(--border-200); border-radius: 10px; padding: 8px 12px;">
+              <label for="f-terdef" style="font-weight: 500; font-size: 0.85rem; color: var(--text-primary); margin-bottom: 0; cursor: pointer;">¿Por Defecto?</label>
+              <input type="checkbox" id="f-terdef" name="terdef" class="switch" />
+            </div>
+          </div>
+          
+          <div class="form-message-area" id="ter-msg-area" style="margin-top: 4px;"></div>
+        </form>
+
+        <!-- BOTONES AL LADO (VERTICAL) -->
+        <aside class="actions-side">
+          <button type="button" class="btn btn-soft" id="btn-new">NUEVO</button>
+          <button type="button" class="btn btn--brand" id="btn-save">GRABAR</button>
+          <button type="button" class="btn btn-warning" id="btn-anular" style="display: none;">ANULAR</button>
+          <button type="button" class="btn btn-danger" id="btn-delete" style="display: none;">BORRAR</button>
+          <button type="button" class="btn btn-ghost" id="btn-cancel">CERRAR</button>
+        </aside>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Rejilla local de 2 columnas sin min-width restrictivo en celdas -->
+<style>
+.form-grid-2-local {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+.form-grid-2-local .field {
+  margin-bottom: 0;
+  min-width: 0;
+}
+@media (max-width: 480px) {
+  .form-grid-2-local {
+    grid-template-columns: 1fr;
+    gap: var(--s2);
+  }
+}
+</style>
+
+<%- include('../partials/footer') %>
