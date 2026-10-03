@@ -292,7 +292,9 @@ async function editarUbicacionProducto(procod, ubicod, data, actor) {
          valor_unitario = @valor_unitario, 
          unicod_vu = @unicod_vu, 
          tarifa = @tarifa,
-         pronom = COALESCE(@pronom, pronom)
+         pronom = COALESCE(@pronom, pronom),
+         codusumod = @actor,
+         fecusumod = GETDATE()
      WHERE empcod = '01' AND procod = @procod AND ubicod = @ubicod`,
     {
       procod: procod.trim(),
@@ -302,7 +304,8 @@ async function editarUbicacionProducto(procod, ubicod, data, actor) {
       valor_unitario: valor_unitario !== '' && valor_unitario !== null ? parseFloat(valor_unitario) : null,
       unicod_vu: unicod_vu ? unicod_vu.trim() : null,
       tarifa: tarifa !== '' && tarifa !== null ? parseFloat(tarifa) : null,
-      pronom: pronom ? pronom.trim() : null
+      pronom: pronom ? pronom.trim() : null,
+      actor
     }
   );
   return true;
