@@ -276,14 +276,16 @@ async function generarReporteCsv() {
     'Código Ubicación',
     'Ubicación',
     'Cant. Total Cabecera',
-    'Unidad',
     'VU Cabecera',
+    'Tarifa Cabecera',
+    'S/ Cabecera',
     'Usuario Registro',
     'Ítem Operario',
     'Código Operario',
     'Nombre del Trabajador',
     'Cantidad Operario (#)',
     'VU Operario',
+    'Tarifa Operario',
     'Total Operario (S/)'
   ];
 
@@ -302,14 +304,16 @@ async function generarReporteCsv() {
       escapeCsvField(r.ubicod),
       escapeCsvField(r.ubinom),
       escapeCsvField(r.cantidadCabecera !== null ? Number(r.cantidadCabecera).toFixed(4) : ''),
-      escapeCsvField(r.unidad),
       escapeCsvField(r.vuCabecera !== null ? Number(r.vuCabecera).toFixed(4) : ''),
+      escapeCsvField(r.tarifaCabecera !== null ? Number(r.tarifaCabecera).toFixed(4) : ''),
+      escapeCsvField(r.solesCabecera !== null ? Number(r.solesCabecera).toFixed(4) : ''),
       escapeCsvField(r.codusucre),
       escapeCsvField(r.cpnum !== null ? r.cpnum : ''),
       escapeCsvField(r.tracod),
       escapeCsvField(r.traraz),
       escapeCsvField(r.cantidadOperario !== null ? Number(r.cantidadOperario).toFixed(4) : ''),
       escapeCsvField(r.vuOperario !== null ? Number(r.vuOperario).toFixed(4) : ''),
+      escapeCsvField(r.tarifa !== null ? Number(r.tarifa).toFixed(4) : ''),
       escapeCsvField(r.subtotal !== null ? Number(r.subtotal).toFixed(4) : '')
     ].join(';');
     lines.push(line);

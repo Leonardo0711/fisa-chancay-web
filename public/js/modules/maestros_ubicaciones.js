@@ -134,6 +134,14 @@
       ubidef: !!item.ubidef
     };
 
+    document.getElementById('lbl-usucre').textContent = item.codusucre || '---';
+    document.getElementById('lbl-feccre').textContent = item.fecusucre ? formatDateTime(item.fecusucre) : '';
+    document.getElementById('lbl-usumod').textContent = item.codusumod || '---';
+    document.getElementById('lbl-fecmod').textContent = item.fecusumod ? formatDateTime(item.fecusumod) : '';
+    document.getElementById('lbl-usuanu').textContent = item.codusuanu || '---';
+    document.getElementById('lbl-fecanu').textContent = item.fecusuanu ? formatDateTime(item.fecusuanu) : '';
+    document.getElementById('audit-fields').style.display = 'block';
+
     // Toggle row class
     Array.from(tbody.children).forEach(tr => {
       tr.classList.remove('row-selected');
@@ -179,6 +187,7 @@
     fUbicod.placeholder = 'Cargando...';
     
     if (btnAnular) btnAnular.style.display = 'none';
+    document.getElementById('audit-fields').style.display = 'none';
     if (btnDelete) btnDelete.style.display = 'none';
     if (btnSave) btnSave.disabled = false;
     hideMessage();

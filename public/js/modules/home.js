@@ -78,7 +78,7 @@
     if (!isManualRefresh) {
       tbody.innerHTML = `
         <tr class="row-empty">
-          <td colspan="11" style="text-align: center; padding: 24px; color: var(--muted);">
+          <td colspan="13" style="text-align: center; padding: 24px; color: var(--muted);">
             Cargando registros de producción...
           </td>
         </tr>
@@ -97,7 +97,7 @@
       console.error('Error al cargar registros de producción:', err);
       tbody.innerHTML = `
         <tr class="row-empty">
-          <td colspan="11" style="text-align: center; padding: 24px; color: var(--danger, #dc2626); font-weight: 700;">
+          <td colspan="13" style="text-align: center; padding: 24px; color: var(--danger, #dc2626); font-weight: 700;">
             Error al consultar registros: ${err.message}
           </td>
         </tr>
@@ -136,7 +136,7 @@
     if (filtered.length === 0) {
       tbody.innerHTML = `
         <tr class="row-empty">
-          <td colspan="11" style="text-align: center; padding: 28px 16px; color: var(--muted);">
+          <td colspan="13" style="text-align: center; padding: 28px 16px; color: var(--muted);">
             <div style="font-weight: 700; color: var(--text-900); font-size: 0.95rem;">No se encontraron registros</div>
             <div style="font-size: 0.8rem; margin-top: 4px;">Modifique los términos de búsqueda o el filtro de tipo de trabajo.</div>
           </td>
@@ -175,10 +175,16 @@
           ${h.ubicod} - ${h.ubinom}
         </td>
         <td style="padding: 10px; text-align: right; font-weight: 700;">
-          ${fmtNum(h.cantidad)} <span style="font-size: 0.75rem; color: var(--muted);">${h.unidad}</span>
+          ${fmtNum(h.cantidad)}
+        </td>
+        <td style="padding: 10px; text-align: right; font-weight: 700; color: var(--text-900);">
+          ${h.tiptra === 'D' ? fmtNum(h.valor_unitario) : '---'}
+        </td>
+        <td style="padding: 10px; text-align: right; font-weight: 700; color: var(--text-800);">
+          ${h.tiptra === 'D' ? 'S/ ' + fmtMoney(h.tarifa) : '---'}
         </td>
         <td style="padding: 10px; text-align: right; font-weight: 800; color: var(--brand-900);">
-          ${h.tiptra === 'D' ? 'S/ ' + fmtMoney(h.valor_unitario) : '---'}
+          ${h.tiptra === 'D' ? 'S/ ' + fmtMoney(h.totalSol || (h.valor_unitario * h.tarifa)) : '---'}
         </td>
         <td style="padding: 10px; text-align: center;">
           <span class="badge" style="background: var(--surface-100); color: var(--text-800); font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color, #e2e8f0);">
@@ -231,11 +237,23 @@
       </div>
       <div>
         <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Cantidad Cabecera</span>
-        <strong>${fmtNum(header.cantidad)} ${header.unidad}</strong>
+        <strong>${fmtNum(header.cantidad)}</strong>
       </div>
       <div>
         <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">VU Cabecera</span>
-        <strong style="color: var(--brand-900);">${header.tiptra === 'D' ? 'S/ ' + fmtMoney(header.valor_unitario) : '---'}</strong>
+        <strong style="color: var(--text-900);">${header.tiptra === 'D' ? fmtNum(header.valor_unitario) : '---'}</strong>
+      </div>
+      <div>
+        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Tarifa Cabecera</span>
+        <strong style="color: var(--text-900);">${header.tiptra === 'D' ? 'S/ ' + fmtMoney(header.tarifa) : '---'}</strong>
+      </div>
+      <div>
+        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">S/ Cabecera</span>
+        <strong style="color: var(--brand-900);">${header.tiptra === 'D' ? 'S/ ' + fmtMoney(header.totalSol || (header.valor_unitario * header.tarifa)) : '---'}</strong>
+      </div>
+      <div>
+        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Total S/</span>
+        <strong id="modalCabeceraTotal" style="color: var(--brand-900);">---</strong>
       </div>
       <div>
         <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Fecha / Hora</span>
@@ -249,7 +267,7 @@
 
     modalTbody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; padding: 24px; color: var(--muted);">
+        <td colspan="7" style="text-align: center; padding: 24px; color: var(--muted);">
           Cargando operarios del registro...
         </td>
       </tr>
@@ -273,7 +291,7 @@
       console.error('Error al cargar detalle:', err);
       modalTbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align: center; padding: 20px; color: var(--danger); font-weight: 700;">
+          <td colspan="7" style="text-align: center; padding: 20px; color: var(--danger); font-weight: 700;">
             No se pudo obtener el detalle: ${err.message}
           </td>
         </tr>
@@ -285,7 +303,7 @@
     if (!details || details.length === 0) {
       modalTbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align: center; padding: 20px; color: var(--muted);">
+          <td colspan="7" style="text-align: center; padding: 20px; color: var(--muted);">
             No hay operarios registrados en este ingreso.
           </td>
         </tr>
@@ -294,12 +312,10 @@
       return;
     }
 
-    let sumCant = 0;
     let sumTotal = 0;
 
     let rowsHtml = '';
     details.forEach(d => {
-      sumCant += Number(d.cantidad || 0);
       sumTotal += Number(d.total || 0);
 
       rowsHtml += `
@@ -317,7 +333,10 @@
             ${fmtNum(d.cantidad)}
           </td>
           <td style="text-align: right; padding: 8px; color: var(--text-800);">
-            S/ ${fmtMoney(d.valor_unitario)}
+            ${fmtNum(d.valor_unitario)}
+          </td>
+          <td style="text-align: right; padding: 8px; color: var(--text-800);">
+            S/ ${fmtMoney(d.tarifa)}
           </td>
           <td style="text-align: right; padding: 8px; font-weight: 800; color: var(--brand-900);">
             S/ ${fmtMoney(d.total)}
@@ -334,16 +353,19 @@
           TOTALES (${details.length} operarios):
         </td>
         <td style="padding: 10px; text-align: center; color: var(--brand-900);">
-          ${fmtNum(sumCant)}
+          ${details.length}
         </td>
-        <td style="padding: 10px; text-align: right; color: var(--muted);">
+        <td colspan="2" style="padding: 10px; text-align: right; color: var(--muted);">
           &mdash;
         </td>
-        <td style="padding: 10px; text-align: right; color: var(--brand-900); font-size: 0.95rem;">
+        <td style="padding: 10px; text-align: right; color: var(--brand-900); font-weight: 800; font-size: 0.95rem;">
           S/ ${fmtMoney(sumTotal)}
         </td>
       </tr>
     `;
+
+    const cabTotalEl = document.getElementById('modalCabeceraTotal');
+    if (cabTotalEl) cabTotalEl.textContent = 'S/ ' + fmtMoney(sumTotal);
   }
 
   function closeModal() {

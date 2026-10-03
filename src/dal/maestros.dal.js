@@ -6,7 +6,8 @@ const db = require('../config/db');
 
 async function listarUnidades() {
   const res = await db.query(
-    `SELECT RTRIM(unicod) AS unicod, RTRIM(uninom) AS uninom, RTRIM(unides) AS unides, unistd, unidef 
+    `SELECT RTRIM(unicod) AS unicod, RTRIM(uninom) AS uninom, RTRIM(unides) AS unides, unistd, unidef,
+            RTRIM(codusucre) AS codusucre, fecusucre, RTRIM(codusumod) AS codusumod, fecusumod, RTRIM(codusuanu) AS codusuanu, fecusuanu
      FROM FTALLER.dbo.PAR_UNIDAD 
      WHERE (codusuanu IS NULL OR unistd = 1)
      ORDER BY unicod`
@@ -103,7 +104,8 @@ async function listarUbicaciones() {
   const res = await db.query(
     `SELECT RTRIM(u.ubicod) AS ubicod, RTRIM(u.ubinom) AS ubinom, RTRIM(u.ubides) AS ubides, 
             u.ubistd, u.ubidef, RTRIM(u.unicod) AS unicod, RTRIM(un.unides) AS unides, 
-            RTRIM(u.tiptra) AS tiptra, u.ubiuni
+            RTRIM(u.tiptra) AS tiptra, u.ubiuni,
+            RTRIM(u.codusucre) AS codusucre, u.fecusucre, RTRIM(u.codusumod) AS codusumod, u.fecusumod, RTRIM(u.codusuanu) AS codusuanu, u.fecusuanu
      FROM FTALLER.dbo.PAR_UBICACION u
      LEFT JOIN FTALLER.dbo.PAR_UNIDAD un ON u.empcod = un.empcod AND u.unicod = un.unicod
      WHERE u.codusuanu IS NULL
@@ -225,7 +227,8 @@ async function listarUbicacionesProducto() {
             up.valor_unitario, 
             RTRIM(up.unicod_vu) AS unicod_vu, 
             RTRIM(un2.unides) AS unides_vu,
-            up.tarifa
+            up.tarifa,
+            RTRIM(up.codusucre) AS codusucre, up.fecusucre, RTRIM(up.codusumod) AS codusumod, up.fecusumod, RTRIM(up.codusuanu) AS codusuanu, up.fecusuanu
      FROM FTALLER.dbo.PAR_UBICACION_PRODUCTO up
      INNER JOIN FTALLER.dbo.PAR_UBICACION u ON up.empcod = u.empcod AND up.ubicod = u.ubicod
      LEFT JOIN FTALLER.dbo.PAR_UNIDAD un1 ON up.empcod = un1.empcod AND up.unicod_cant = un1.unicod

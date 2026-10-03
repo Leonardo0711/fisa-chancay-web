@@ -323,6 +323,7 @@ async function listarRegistrosProduccion(options = {}) {
       RTRIM(cp.unicod_cant) AS unicod_cant,
       ISNULL(RTRIM(un.unides), cp.unicod_cant) AS unidad,
       cp.valor_unitario,
+      ISNULL(cp.tarifa, 0) AS tarifa,
       RTRIM(cp.codusucre) AS codusucre,
       cp.fecusucre,
       (SELECT COUNT(1) FROM TAL_CONTROL_PRODUCCION_DETALLE d WHERE d.empcod = cp.empcod AND d.cpcod = cp.cpcod) AS totalOperarios
@@ -335,23 +336,29 @@ async function listarRegistrosProduccion(options = {}) {
 
   const res = await req.query(query);
 
-  return res.recordset.map(row => ({
-    empcod: row.empcod,
-    cpcod: row.cpcod,
-    otcod: row.otcod,
-    tiptra: row.tiptra,
-    tiptraDesc: row.tiptra === 'D' ? 'DESTAJO' : 'JORNAL',
-    ubicod: row.ubicod,
-    ubinom: row.ubinom,
-    lotcod: row.lotcod,
-    cantidad: Number(row.cantidad || 0),
-    unicod_cant: row.unicod_cant,
-    unidad: row.unidad || '---',
-    valor_unitario: Number(row.valor_unitario || 0),
-    codusucre: row.codusucre,
-    fecusucre: row.fecusucre,
-    totalOperarios: Number(row.totalOperarios || 0)
-  }));
+  return res.recordset.map(row => {
+    const vu = Number(row.valor_unitario || 0);
+    const tar = Number(row.tarifa || 0);
+    return {
+      empcod: row.empcod,
+      cpcod: row.cpcod,
+      otcod: row.otcod,
+      tiptra: row.tiptra,
+      tiptraDesc: row.tiptra === 'D' ? 'DESTAJO' : 'JORNAL',
+      ubicod: row.ubicod,
+      ubinom: row.ubinom,
+      lotcod: row.lotcod,
+      cantidad: Number(row.cantidad || 0),
+      unicod_cant: row.unicod_cant,
+      unidad: row.unidad || '---',
+      valor_unitario: vu,
+      tarifa: tar,
+      totalSol: Number(vu * tar),
+      codusucre: row.codusucre,
+      fecusucre: row.fecusucre,
+      totalOperarios: Number(row.totalOperarios || 0)
+    };
+  });
 }
 
 /**
@@ -368,24 +375,31 @@ async function obtenerDetalleRegistroProduccion(cpcod) {
         d.cpnum,
         RTRIM(d.tracod) AS tracod,
         d.cantidad,
-        d.valor_unitario
+        d.valor_unitario,
+        COALESCE(NULLIF(d.tarifa, 0), cp.tarifa, 0) AS tarifa
       FROM TAL_CONTROL_PRODUCCION_DETALLE d
+      INNER JOIN TAL_CONTROL_PRODUCCION cp ON d.empcod = cp.empcod AND d.cpcod = cp.cpcod
       WHERE d.cpcod = @cpcod
       ORDER BY d.cpnum ASC
     `);
 
   const workerMap = await getWorkersDictionary();
 
-  return res.recordset.map(row => ({
-    empcod: row.empcod,
-    cpcod: row.cpcod,
-    cpnum: row.cpnum,
-    tracod: row.tracod,
-    traraz: workerMap[row.tracod] || row.tracod,
-    cantidad: Number(row.cantidad || 0),
-    valor_unitario: Number(row.valor_unitario || 0),
-    total: Number((row.cantidad || 0) * (row.valor_unitario || 0))
-  }));
+  return res.recordset.map(row => {
+    const vu = Number(row.valor_unitario || 0);
+    const tar = Number(row.tarifa || 0);
+    return {
+      empcod: row.empcod,
+      cpcod: row.cpcod,
+      cpnum: row.cpnum,
+      tracod: row.tracod,
+      traraz: workerMap[row.tracod] || row.tracod,
+      cantidad: Number(row.cantidad || 0),
+      valor_unitario: vu,
+      tarifa: tar,
+      total: Number(vu * tar)
+    };
+  });
 }
 
 /**
@@ -406,11 +420,13 @@ async function obtenerRegistrosCompletosParaExportar() {
       cp.cantidad AS cantidadCabecera,
       ISNULL(RTRIM(un.unides), cp.unicod_cant) AS unidad,
       cp.valor_unitario AS vuCabecera,
+      ISNULL(cp.tarifa, 0) AS tarifaCabecera,
       RTRIM(cp.codusucre) AS codusucre,
       d.cpnum,
       RTRIM(d.tracod) AS tracod,
       d.cantidad AS cantidadOperario,
-      d.valor_unitario AS vuOperario
+      d.valor_unitario AS vuOperario,
+      COALESCE(NULLIF(d.tarifa, 0), cp.tarifa, 0) AS tarifa
     FROM TAL_CONTROL_PRODUCCION cp
     LEFT JOIN PAR_UBICACION u ON cp.empcod = u.empcod AND cp.ubicod = u.ubicod
     LEFT JOIN PAR_UNIDAD un ON cp.empcod = un.empcod AND cp.unicod_cant = un.unicod
@@ -420,27 +436,36 @@ async function obtenerRegistrosCompletosParaExportar() {
 
   const workerMap = await getWorkersDictionary();
 
-  return res.recordset.map(row => ({
-    empcod: row.empcod,
-    cpcod: row.cpcod,
-    fecusucre: row.fecusucre,
-    otcod: row.otcod,
-    lotcod: row.lotcod,
-    tiptra: row.tiptra,
-    tiptraDesc: row.tiptra === 'D' ? 'DESTAJO' : 'JORNAL',
-    ubicod: row.ubicod,
-    ubinom: row.ubinom,
-    cantidadCabecera: Number(row.cantidadCabecera || 0),
-    unidad: row.unidad || '---',
-    vuCabecera: Number(row.vuCabecera || 0),
-    codusucre: row.codusucre,
-    cpnum: row.cpnum || null,
-    tracod: row.tracod || '',
-    traraz: workerMap[row.tracod] || row.tracod || '',
-    cantidadOperario: row.cantidadOperario !== null ? Number(row.cantidadOperario) : null,
-    vuOperario: row.vuOperario !== null ? Number(row.vuOperario) : null,
-    subtotal: Number((row.cantidadOperario || 0) * (row.vuOperario || 0))
-  }));
+  return res.recordset.map(row => {
+    const vuCab = Number(row.vuCabecera || 0);
+    const tarCab = Number(row.tarifaCabecera || 0);
+    const vuOp = row.vuOperario !== null ? Number(row.vuOperario) : null;
+    const tarOp = row.tarifa !== null ? Number(row.tarifa) : null;
+    return {
+      empcod: row.empcod,
+      cpcod: row.cpcod,
+      fecusucre: row.fecusucre,
+      otcod: row.otcod,
+      lotcod: row.lotcod,
+      tiptra: row.tiptra,
+      tiptraDesc: row.tiptra === 'D' ? 'DESTAJO' : 'JORNAL',
+      ubicod: row.ubicod,
+      ubinom: row.ubinom,
+      cantidadCabecera: Number(row.cantidadCabecera || 0),
+      unidad: row.unidad || '---',
+      vuCabecera: vuCab,
+      tarifaCabecera: tarCab,
+      solesCabecera: Number(vuCab * tarCab),
+      codusucre: row.codusucre,
+      cpnum: row.cpnum || null,
+      tracod: row.tracod || '',
+      traraz: workerMap[row.tracod] || row.tracod || '',
+      cantidadOperario: row.cantidadOperario !== null ? Number(row.cantidadOperario) : null,
+      vuOperario: vuOp,
+      tarifa: tarOp,
+      subtotal: vuOp !== null && tarOp !== null ? Number(vuOp * tarOp) : 0
+    };
+  });
 }
 
 module.exports = {
