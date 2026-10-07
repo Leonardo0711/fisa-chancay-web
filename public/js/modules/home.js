@@ -184,7 +184,7 @@
           ${h.tiptra === 'D' ? 'S/ ' + fmtMoney(h.tarifa) : '---'}
         </td>
         <td style="padding: 10px; text-align: right; font-weight: 800; color: var(--brand-900);">
-          ${h.tiptra === 'D' ? 'S/ ' + fmtMoney(h.totalSol || (h.valor_unitario * h.tarifa)) : '---'}
+          ${h.tiptra === 'D' ? 'S/ ' + fmtMoney(h.totalSol) : '---'}
         </td>
         <td style="padding: 10px; text-align: center;">
           <span class="badge" style="background: var(--surface-100); color: var(--text-800); font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid var(--border-color, #e2e8f0);">
@@ -194,17 +194,29 @@
         <td style="padding: 10px; font-size: 0.8rem; color: var(--muted); font-weight: 600;">
           ${h.codusucre || '---'}
         </td>
-        <td style="padding: 10px; text-align: center;">
+        <td style="padding: 10px; text-align: center; white-space: nowrap;">
           <button type="button" class="btn btn-soft btn-open-detail" style="padding: 4px 10px; font-size: 0.78rem; font-weight: 700;" data-cpcod="${h.cpcod}">
             Ver Detalle
+          </button>
+          <button type="button" class="btn btn-danger btn-delete-record" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 700; margin-left: 6px;" data-cpcod="${h.cpcod}" title="Eliminar registro">
+            Eliminar
           </button>
         </td>
       `;
 
-      // Clic en fila o botón abre modal de detalle
+      // Clic en fila abre modal de detalle
       tr.addEventListener('click', () => {
         openDetailModal(h);
       });
+
+      // Clic en Eliminar
+      const btnDelete = tr.querySelector('.btn-delete-record');
+      if (btnDelete) {
+        btnDelete.addEventListener('click', (e) => {
+          e.stopPropagation();
+          confirmDeleteRecord(h.cpcod);
+        });
+      }
 
       tbody.appendChild(tr);
     });
@@ -244,16 +256,8 @@
         <strong style="color: var(--text-900);">${header.tiptra === 'D' ? fmtNum(header.valor_unitario) : '---'}</strong>
       </div>
       <div>
-        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Tarifa Cabecera</span>
-        <strong style="color: var(--text-900);">${header.tiptra === 'D' ? 'S/ ' + fmtMoney(header.tarifa) : '---'}</strong>
-      </div>
-      <div>
         <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">S/ Cabecera</span>
-        <strong style="color: var(--brand-900);">${header.tiptra === 'D' ? 'S/ ' + fmtMoney(header.totalSol || (header.valor_unitario * header.tarifa)) : '---'}</strong>
-      </div>
-      <div>
-        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Total S/</span>
-        <strong id="modalCabeceraTotal" style="color: var(--brand-900);">---</strong>
+        <strong id="modalCabeceraTotal" style="color: var(--brand-900);">${header.tiptra === 'D' ? 'S/ ' + fmtMoney(header.totalSol) : '---'}</strong>
       </div>
       <div>
         <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Fecha / Hora</span>
@@ -371,6 +375,29 @@
   function closeModal() {
     if (modalDetalle) {
       modalDetalle.classList.remove('active');
+    }
+  }
+
+  async function confirmDeleteRecord(cpcod) {
+    if (!confirm(`¿Está seguro de eliminar el registro de control #${cpcod}?\n\nEsta acción eliminará el detalle de operarios y la cabecera permanentemente.`)) {
+      return;
+    }
+    try {
+      const res = await window.AppFetch(`/api/produccion/registros/${encodeURIComponent(cpcod)}`, {
+        method: 'DELETE'
+      });
+      if (window.StatusBar && typeof window.StatusBar.showMessage === 'function') {
+        window.StatusBar.showMessage(res.message || `Registro #${cpcod} eliminado correctamente`, 'success');
+      }
+      loadedDetails.delete(cpcod);
+      await loadProduccionHeaders();
+    } catch (err) {
+      console.error('Error eliminando registro:', err);
+      if (window.StatusBar && typeof window.StatusBar.showMessage === 'function') {
+        window.StatusBar.showMessage(err.message, 'error');
+      } else {
+        alert('Error al eliminar: ' + err.message);
+      }
     }
   }
 

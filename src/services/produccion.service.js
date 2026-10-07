@@ -322,6 +322,14 @@ async function generarReporteCsv() {
   return lines.join('\r\n');
 }
 
+async function eliminarRegistroProduccion(cpcod, userContext) {
+  if (!cpcod) {
+    throw new Error('Código de control de producción no especificado.');
+  }
+  const empcod = typeof userContext === 'object' ? (userContext.empcod || '01') : '01';
+  return produccionDal.eliminarRegistroProduccion(cpcod, empcod);
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
@@ -332,5 +340,7 @@ module.exports = {
   registrarProduccion,
   listarRegistros,
   obtenerDetalleRegistro,
-  generarReporteCsv
+  generarReporteCsv,
+  eliminarRegistroProduccion
 };
+

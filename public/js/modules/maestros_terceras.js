@@ -84,6 +84,8 @@
     
     // Populate form
     fTercod.value = item.tercod;
+    fTercod.readOnly = true;
+    fTercod.style.background = 'var(--surface-100)';
 
     fTernom.value = item.ternom;
     fTerdes.value = item.terdes || '';
@@ -140,6 +142,8 @@
     form.reset();
     fTercod.value = '';
     fTercod.placeholder = 'Cargando...';
+    fTercod.readOnly = false;
+    fTercod.style.background = '';
     
     if (btnAnular) btnAnular.style.display = 'none';
     if (btnDelete) btnDelete.style.display = 'none';

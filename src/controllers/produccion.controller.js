@@ -139,6 +139,16 @@ async function apiExportarRegistrosProduccion(req, res, next) {
   }
 }
 
+async function apiEliminarRegistroProduccion(req, res, next) {
+  try {
+    const { cpcod } = req.params;
+    await produccionService.eliminarRegistroProduccion(cpcod, req.user);
+    return res.json({ success: true, message: `Registro #${cpcod} eliminado correctamente.` });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   renderProduccion,
   apiBuscarOts,
@@ -150,5 +160,7 @@ module.exports = {
   apiRegistrarProduccion,
   apiListarRegistrosProduccion,
   apiObtenerDetalleRegistro,
-  apiExportarRegistrosProduccion
+  apiExportarRegistrosProduccion,
+  apiEliminarRegistroProduccion
 };
+

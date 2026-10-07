@@ -363,10 +363,24 @@ async function listarRegistrosProduccion(options = {}) {
       ISNULL(cp.tarifa, 0) AS tarifa,
       RTRIM(cp.codusucre) AS codusucre,
       cp.fecusucre,
-      (SELECT COUNT(1) FROM TAL_CONTROL_PRODUCCION_DETALLE d WHERE d.empcod = cp.empcod AND d.cpcod = cp.cpcod) AS totalOperarios
+      ISNULL(d_tot.totalOperarios, 0) AS totalOperarios,
+      CASE 
+        WHEN d_tot.sumDetalles > 0 THEN d_tot.sumDetalles
+        WHEN cp.tiptra = 'D' AND ISNULL(cp.tarifa, 0) > 0 AND ISNULL(d_tot.sumVu, 0) > 0 THEN d_tot.sumVu * cp.tarifa
+        WHEN cp.tiptra = 'D' THEN cp.cantidad * cp.valor_unitario * ISNULL(cp.tarifa, 0)
+        ELSE 0 
+      END AS totalSol
     FROM TAL_CONTROL_PRODUCCION cp
     LEFT JOIN PAR_UBICACION u ON cp.empcod = u.empcod AND cp.ubicod = u.ubicod
     LEFT JOIN PAR_UNIDAD un ON cp.empcod = un.empcod AND cp.unicod_cant = un.unicod
+    LEFT JOIN (
+      SELECT empcod, cpcod,
+             COUNT(1) AS totalOperarios,
+             SUM(valor_unitario * COALESCE(NULLIF(tarifa, 0), 0)) AS sumDetalles,
+             SUM(valor_unitario) AS sumVu
+      FROM TAL_CONTROL_PRODUCCION_DETALLE
+      GROUP BY empcod, cpcod
+    ) d_tot ON d_tot.empcod = cp.empcod AND d_tot.cpcod = cp.cpcod
     ${whereClause}
     ORDER BY cp.fecusucre DESC, cp.cpcod DESC
   `;
@@ -376,6 +390,7 @@ async function listarRegistrosProduccion(options = {}) {
   return res.recordset.map(row => {
     const vu = Number(row.valor_unitario || 0);
     const tar = Number(row.tarifa || 0);
+    const totSol = Number(row.totalSol || 0);
     return {
       empcod: row.empcod,
       cpcod: row.cpcod,
@@ -390,7 +405,7 @@ async function listarRegistrosProduccion(options = {}) {
       unidad: row.unidad || '---',
       valor_unitario: vu,
       tarifa: tar,
-      totalSol: Number(vu * tar),
+      totalSol: totSol,
       codusucre: row.codusucre,
       fecusucre: row.fecusucre,
       totalOperarios: Number(row.totalOperarios || 0)
@@ -505,6 +520,39 @@ async function obtenerRegistrosCompletosParaExportar() {
   });
 }
 
+/**
+ * Deletes a production control record: first from TAL_CONTROL_PRODUCCION_DETALLE,
+ * and then from TAL_CONTROL_PRODUCCION.
+ */
+async function eliminarRegistroProduccion(cpcod, empcod = '01') {
+  const pool = await db.connect();
+  const transaction = new db.sql.Transaction(pool);
+  await transaction.begin();
+  try {
+    const reqDet = new db.sql.Request(transaction);
+    reqDet.input('cpcod', db.sql.Char(10), String(cpcod).trim());
+    reqDet.input('empcod', db.sql.Char(2), String(empcod).trim());
+    await reqDet.query(`
+      DELETE FROM TAL_CONTROL_PRODUCCION_DETALLE 
+      WHERE empcod = @empcod AND cpcod = @cpcod
+    `);
+
+    const reqCab = new db.sql.Request(transaction);
+    reqCab.input('cpcod', db.sql.Char(10), String(cpcod).trim());
+    reqCab.input('empcod', db.sql.Char(2), String(empcod).trim());
+    await reqCab.query(`
+      DELETE FROM TAL_CONTROL_PRODUCCION 
+      WHERE empcod = @empcod AND cpcod = @cpcod
+    `);
+
+    await transaction.commit();
+    return true;
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
+  }
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
@@ -518,7 +566,9 @@ module.exports = {
   listarRegistrosProduccion,
   obtenerDetalleRegistroProduccion,
   obtenerRegistrosCompletosParaExportar,
-  getWorkersDictionary
+  getWorkersDictionary,
+  eliminarRegistroProduccion
 };
+
 
 

@@ -22,6 +22,7 @@ router.post('/api/produccion/registrar', requireAuth, requirePermission('PRODUCC
 router.get('/api/produccion/registros', requireAuth, produccionController.apiListarRegistrosProduccion);
 router.get('/api/produccion/registros/exportar', requireAuth, produccionController.apiExportarRegistrosProduccion);
 router.get('/api/produccion/registros/:cpcod/detalle', requireAuth, produccionController.apiObtenerDetalleRegistro);
+router.delete('/api/produccion/registros/:cpcod', requireAuth, produccionController.apiEliminarRegistroProduccion);
 
 module.exports = router;
 
