@@ -10,7 +10,8 @@ const config = {
   password: env.DB_PASSWORD,
   options: {
     encrypt: env.DB_ENCRYPT,
-    trustServerCertificate: env.DB_TRUST_SERVER_CERTIFICATE
+    trustServerCertificate: env.DB_TRUST_SERVER_CERTIFICATE,
+    useUTC: false
   },
   pool: {
     max: 10,

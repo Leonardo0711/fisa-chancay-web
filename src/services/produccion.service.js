@@ -229,6 +229,18 @@ async function registrarProduccion(data, userContext) {
   const actorUsucod = typeof userContext === 'object' ? userContext.usucod : (userContext || 'ADMIN');
   const actorEmpcod = typeof userContext === 'object' ? (userContext.empcod || empcod || '01') : (empcod || '01');
 
+  // Validación de saldo para Jornal: no permitir que finalCantidad exceda el saldo pendiente
+  if (finalTiptra === 'J' && otcod && ubicod) {
+    const procodParam = (data.procod || '').trim();
+    const saldoInfo = await produccionDal.obtenerSaldoPendienteJornal(otcod, ubicod, procodParam).catch(() => null);
+    if (saldoInfo && saldoInfo.totalConfigurada > 0) {
+      const saldoMax = saldoInfo.saldoPendiente;
+      if (finalCantidad > saldoMax) {
+        throw new Error(`NO SE PUEDE REGISTRAR: La cantidad ingresada (${finalCantidad}) excede el saldo pendiente permitido (${saldoMax} de ${saldoInfo.totalConfigurada}).`);
+      }
+    }
+  }
+
   // Ejecutar el Stored Procedure PA_TAL_CONTROL_PRODUCCION en FTALLER
   const spParams = {
     empcod: actorEmpcod,
@@ -302,7 +314,15 @@ async function generarReporteCsv() {
   lines.push('\uFEFF' + headers.map(escapeCsvField).join(';'));
 
   for (const r of rows) {
-    const fecha = r.fecusucre ? new Date(r.fecusucre).toLocaleString('es-PE', { timeZone: 'America/Lima' }) : '';
+    let fecha = '';
+    if (r.fecusucre) {
+      const match = String(r.fecusucre).match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/);
+      if (match) {
+        fecha = `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}:${match[6]}`;
+      } else {
+        fecha = new Date(r.fecusucre).toLocaleString('es-PE', { timeZone: 'America/Lima' });
+      }
+    }
     const line = [
       escapeCsvField(r.cpcod),
       escapeCsvField(fecha),

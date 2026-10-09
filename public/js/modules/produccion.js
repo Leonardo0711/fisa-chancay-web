@@ -12,6 +12,8 @@
   let allLocations = [];
   let currentLotesData = [];
   let lotesCosturasMap = {};
+  let currentJornalTotal = 0;
+  let currentJornalSaldo = 0;
 
   // DOM Elements
   const btnBuscarOt = document.getElementById('btnBuscarOt');
@@ -87,18 +89,27 @@
     inputCantidadIngresar.addEventListener('input', () => {
       const config = getCurrentLocationConfig();
       const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
-      if (isJornal && selectedOperarios.size > 0) {
+      if (isJornal) {
         const val = parseFloat(inputCantidadIngresar.value || 0);
-        if (!isNaN(val) && val >= 0) {
+        const maxPermitido = currentJornalSaldo > 0 ? currentJornalSaldo : currentJornalTotal;
+        if (maxPermitido > 0 && val > maxPermitido) {
+          showAlert(`LA CANTIDAD A INGRESAR (${val}) NO PUEDE EXCEDER EL SALDO PENDIENTE (${maxPermitido})`, 'error');
+          if (btnAccept) btnAccept.disabled = true;
+          return;
+        } else {
+          hideAlert();
+          if (btnAccept) btnAccept.disabled = false;
+        }
+        if (selectedOperarios.size > 0 && !isNaN(val) && val >= 0) {
           const perOp = parseFloat((val / selectedOperarios.size).toFixed(2));
           selectedOperarios.forEach(op => {
             op.vu = perOp;
             op.cantidad = 1;
           });
+          renderSelectedOperarios();
         }
       }
       recalculateWorkerValues();
-      renderSelectedOperarios();
       saveFormDraft();
     });
   }
@@ -526,9 +537,12 @@
       if (activeOt) {
         window.AppFetch(`/api/produccion/ots/${encodeURIComponent(activeOt)}/saldo-jornal?ubicod=${encodeURIComponent(ubicod)}&procod=${encodeURIComponent(activeProduct || '')}`)
           .then(saldoData => {
-            const totalConfig = saldoData.totalConfigurada || config.cantidad || 0;
-            const reg = saldoData.cantidadRegistrada || 0;
+            const totalConfig = Number(saldoData.totalConfigurada || config.cantidad || 0);
+            const reg = Number(saldoData.cantidadRegistrada || 0);
             const saldo = saldoData.saldoPendiente > 0 ? saldoData.saldoPendiente : (totalConfig > 0 ? Math.max(0, totalConfig - reg) : 0);
+            
+            currentJornalTotal = totalConfig;
+            currentJornalSaldo = saldo;
             
             if (saldo > 0) {
               inputCantidadIngresar.value = saldo;
@@ -582,7 +596,12 @@
     inputVuIngresar.readOnly = false;
     inputVuIngresar.style.background = '#fff';
     badgCant.textContent = '---';
+    badgCant.style.color = '';
+    badgCant.style.fontWeight = '';
     badgVu.textContent = '---';
+    currentJornalTotal = 0;
+    currentJornalSaldo = 0;
+    if (btnAccept) btnAccept.disabled = false;
     
     document.getElementById('vuFieldGroup').style.display = 'block';
     document.getElementById('loteFieldGroup').style.display = 'block';
@@ -1335,6 +1354,26 @@
     if (inputCantidadIngresar && selectedOperarios.size > 0) {
       inputCantidadIngresar.value = Number.isInteger(sumVu) ? sumVu : parseFloat(sumVu.toFixed(2));
     }
+
+    const maxPermitido = currentJornalSaldo > 0 ? currentJornalSaldo : currentJornalTotal;
+    if (maxPermitido > 0) {
+      if (sumVu > maxPermitido) {
+        badgCant.textContent = `¡EXCEDE! ${sumVu} > ${maxPermitido}`;
+        badgCant.style.color = '#dc2626';
+        badgCant.style.fontWeight = '800';
+        showAlert(`LA CANTIDAD ASIGNADA (${sumVu}) EXCEDE EL SALDO DISPONIBLE (${maxPermitido})`, 'error');
+        if (btnAccept) btnAccept.disabled = true;
+      } else {
+        const restante = maxPermitido - sumVu;
+        badgCant.textContent = `Pend: ${maxPermitido}/${currentJornalTotal} (Resta: ${restante})`;
+        badgCant.style.color = '';
+        badgCant.style.fontWeight = '';
+        hideAlert();
+        if (btnAccept) btnAccept.disabled = false;
+      }
+    } else {
+      if (btnAccept) btnAccept.disabled = false;
+    }
   }
 
   /**
@@ -1446,6 +1485,11 @@
       cantidadIngresar = Array.from(selectedOperarios.values()).reduce((sum, op) => sum + Number(op.vu !== undefined ? op.vu : (op.cantidad || 0)), 0);
       if (cantidadIngresar <= 0) {
         showAlert('LA CANTIDAD TOTAL ASIGNADA A LOS OPERARIOS DEBE SER MAYOR A 0', 'error');
+        return;
+      }
+      const maxPermitido = currentJornalSaldo > 0 ? currentJornalSaldo : currentJornalTotal;
+      if (maxPermitido > 0 && cantidadIngresar > maxPermitido) {
+        showAlert(`NO SE PUEDE REGISTRAR: LA CANTIDAD INGRESADA (${cantidadIngresar}) EXCEDE EL SALDO PENDIENTE (${maxPermitido})`, 'error');
         return;
       }
       selectedOperarios.forEach(op => {

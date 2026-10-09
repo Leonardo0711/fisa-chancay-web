@@ -1,5 +1,7 @@
 'use strict';
 
+process.env.TZ = 'America/Lima';
+
 const app = require('./src/app');
 const env = require('./src/config/env');
 const db = require('./src/config/db');

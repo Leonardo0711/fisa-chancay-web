@@ -362,7 +362,7 @@ async function listarRegistrosProduccion(options = {}) {
       cp.valor_unitario,
       ISNULL(cp.tarifa, 0) AS tarifa,
       RTRIM(cp.codusucre) AS codusucre,
-      cp.fecusucre,
+      CONVERT(varchar(19), cp.fecusucre, 120) AS fecusucre,
       ISNULL(d_tot.totalOperarios, 0) AS totalOperarios,
       CASE 
         WHEN d_tot.sumDetalles > 0 THEN d_tot.sumDetalles
@@ -475,7 +475,7 @@ async function obtenerRegistrosCompletosParaExportar() {
     SELECT 
       RTRIM(cp.empcod) AS empcod,
       RTRIM(cp.cpcod) AS cpcod,
-      cp.fecusucre,
+      CONVERT(varchar(19), cp.fecusucre, 120) AS fecusucre,
       RTRIM(cp.otcod) AS otcod,
       RTRIM(cp.lotcod) AS lotcod,
       RTRIM(cp.tiptra) AS tiptra,

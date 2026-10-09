@@ -11,7 +11,8 @@ const config = {
   password: env.ESOLVER_DB_PASSWORD,
   options: {
     encrypt: env.ESOLVER_DB_ENCRYPT,
-    trustServerCertificate: env.ESOLVER_DB_TRUST_SERVER_CERTIFICATE
+    trustServerCertificate: env.ESOLVER_DB_TRUST_SERVER_CERTIFICATE,
+    useUTC: false
   },
   pool: {
     max: 10,

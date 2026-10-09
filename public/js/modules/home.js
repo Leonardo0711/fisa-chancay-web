@@ -732,6 +732,16 @@
   function formatDateTime(isoString) {
     if (!isoString) return '---';
     try {
+      const match = String(isoString).match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+      if (match) {
+        const [, yyyy, mm, dd, hhRaw, min] = match;
+        const pad = (n) => String(n).padStart(2, '0');
+        let hh = parseInt(hhRaw, 10);
+        const ampm = hh >= 12 ? 'PM' : 'AM';
+        hh = hh % 12;
+        hh = hh ? pad(hh) : 12;
+        return `${dd}/${mm}/${yyyy} ${hh}:${min} ${ampm}`;
+      }
       const d = new Date(isoString);
       const pad = (n) => String(n).padStart(2, '0');
       const dd = pad(d.getDate());
