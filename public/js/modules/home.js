@@ -316,6 +316,12 @@
       </div>
     `;
 
+    const isJornal = header.tiptra === 'J';
+    const thDetCant = document.getElementById('thModalDetalleCant');
+    const thDetVu = document.getElementById('thModalDetalleVu');
+    if (thDetCant) thDetCant.style.display = isJornal ? 'none' : '';
+    if (thDetVu) thDetVu.textContent = isJornal ? 'CANTIDAD' : 'VU';
+
     modalTbody.innerHTML = `
       <tr>
         <td colspan="7" style="text-align: center; padding: 24px; color: var(--muted);">
@@ -337,7 +343,7 @@
         loadedDetails.set(header.cpcod, details);
       }
 
-      renderModalDetails(details);
+      renderModalDetails(details, header);
     } catch (err) {
       console.error('Error al cargar detalle:', err);
       modalTbody.innerHTML = `
@@ -350,7 +356,7 @@
     }
   }
 
-  function renderModalDetails(details) {
+  function renderModalDetails(details, header) {
     if (!details || details.length === 0) {
       modalTbody.innerHTML = `
         <tr>
@@ -363,11 +369,14 @@
       return;
     }
 
+    const isJornal = header && header.tiptra === 'J';
     let sumTotal = 0;
+    let sumVu = 0;
 
     let rowsHtml = '';
     details.forEach(d => {
       sumTotal += Number(d.total || 0);
+      sumVu += Number(d.valor_unitario || 0);
 
       rowsHtml += `
         <tr>
@@ -380,14 +389,16 @@
           <td style="padding: 8px; font-weight: 700; color: var(--text-900);">
             ${d.traraz || '---'}
           </td>
+          ${isJornal ? '' : `
           <td style="text-align: center; padding: 8px; font-weight: 700;">
             ${fmtNum(d.cantidad)}
           </td>
-          <td style="text-align: right; padding: 8px; color: var(--text-800);">
+          `}
+          <td style="text-align: right; padding: 8px; color: var(--text-800); font-weight: ${isJornal ? '800' : 'normal'};">
             ${fmtNum(d.valor_unitario)}
           </td>
           <td style="text-align: right; padding: 8px; color: var(--text-800);">
-            S/ ${fmtMoney(d.tarifa)}
+            ${header && header.tiptra === 'D' ? ('S/ ' + fmtMoney(d.tarifa)) : (Number(d.tarifa) > 0 ? ('S/ ' + fmtMoney(d.tarifa)) : '---')}
           </td>
           <td style="text-align: right; padding: 8px; font-weight: 800; color: var(--brand-900);">
             S/ ${fmtMoney(d.total)}
@@ -403,12 +414,17 @@
         <td colspan="3" style="padding: 10px; text-align: right; color: var(--brand-900); text-transform: uppercase;">
           TOTALES (${details.length} operarios):
         </td>
+        ${isJornal ? `
+        <td style="padding: 10px; text-align: right; color: var(--brand-900); font-weight: 800;">
+          ${Number.isInteger(sumVu) ? sumVu : parseFloat(sumVu.toFixed(2))}
+        </td>
+        ` : `
         <td style="padding: 10px; text-align: center; color: var(--brand-900);">
           ${details.length}
         </td>
-        <td colspan="2" style="padding: 10px; text-align: right; color: var(--muted);">
-          &mdash;
-        </td>
+        <td style="padding: 10px; text-align: right; color: var(--muted);">&mdash;</td>
+        `}
+        <td style="padding: 10px; text-align: right; color: var(--muted);">&mdash;</td>
         <td style="padding: 10px; text-align: right; color: var(--brand-900); font-weight: 800; font-size: 0.95rem;">
           S/ ${fmtMoney(sumTotal)}
         </td>
@@ -465,6 +481,12 @@
       </div>
     `;
 
+    const isJornal = header.tiptra === 'J';
+    const thEditCant = document.getElementById('thModalEditarCant');
+    const thEditVu = document.getElementById('thModalEditarVu');
+    if (thEditCant) thEditCant.style.display = isJornal ? 'none' : '';
+    if (thEditVu) thEditVu.textContent = isJornal ? 'CANTIDAD' : 'VU';
+
     modalEditarTbody.innerHTML = `
       <tr>
         <td colspan="7" style="text-align: center; padding: 24px; color: var(--muted);">
@@ -506,6 +528,7 @@
     }
 
     const isDestajo = header.tiptra === 'D';
+    const isJornal = header.tiptra === 'J';
     let rowsHtml = '';
 
     details.forEach((d, idx) => {
@@ -525,11 +548,13 @@
           <td style="padding: 8px; font-weight: 700; color: var(--text-900);">
             ${d.traraz || '---'}
           </td>
+          ${isJornal ? '' : `
           <td style="text-align: center; padding: 6px;">
             <input type="number" class="input edit-cant-input" data-index="${idx}" value="${d.cantidad}" min="0" step="any" style="width: 84px; height: 32px; text-align: center; font-weight: 800; font-size: 0.9rem; padding: 2px 4px; border-radius: 6px;" />
           </td>
+          `}
           <td style="text-align: right; padding: 6px;">
-            <input type="number" class="input edit-vu-input" data-index="${idx}" value="${d.valor_unitario}" min="0" step="0.01" style="width: 80px; height: 32px; text-align: right; font-weight: 800; font-size: 0.9rem; padding: 2px 4px; border-radius: 6px;" />
+            <input type="number" class="input edit-vu-input" data-index="${idx}" value="${d.valor_unitario}" min="0" step="any" style="width: 84px; height: 32px; text-align: right; font-weight: 800; font-size: 0.9rem; padding: 2px 4px; border-radius: 6px;" />
           </td>
           <td style="text-align: right; padding: 8px; color: var(--text-800);">
             ${isDestajo ? ('S/ ' + fmtMoney(tarifaVal)) : (tarifaVal > 0 ? ('S/ ' + fmtMoney(tarifaVal)) : '---')}
@@ -544,13 +569,15 @@
     modalEditarTbody.innerHTML = rowsHtml;
 
     // Listeners para recálculo dinámico en vivo
-    modalEditarTbody.querySelectorAll('.edit-cant-input').forEach(inp => {
-      inp.addEventListener('input', (e) => {
-        const i = parseInt(e.target.dataset.index, 10);
-        details[i].cantidad = parseFloat(e.target.value || 0);
-        recalculateModalEditTotals(header);
+    if (!isJornal) {
+      modalEditarTbody.querySelectorAll('.edit-cant-input').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+          const i = parseInt(e.target.dataset.index, 10);
+          details[i].cantidad = parseFloat(e.target.value || 0);
+          recalculateModalEditTotals(header);
+        });
       });
-    });
+    }
 
     modalEditarTbody.querySelectorAll('.edit-vu-input').forEach(inp => {
       inp.addEventListener('input', (e) => {
@@ -566,14 +593,17 @@
   function recalculateModalEditTotals(header) {
     if (!currentEditingDetails) return;
     const isDestajo = header.tiptra === 'D';
+    const isJornal = header.tiptra === 'J';
     let totalCant = 0;
+    let totalVu = 0;
     let totalSol = 0;
 
     currentEditingDetails.forEach((d, idx) => {
-      const cant = Number(d.cantidad || 0);
+      const cant = isJornal ? 1 : Number(d.cantidad || 0);
       const vu = Number(d.valor_unitario || 0);
       const tarifaVal = Number(d.tarifa || header.tarifa || 0);
       totalCant += cant;
+      totalVu += vu;
 
       const subtotal = isDestajo 
         ? (vu * tarifaVal) 
@@ -587,25 +617,44 @@
       }
     });
 
-    modalEditarTfoot.innerHTML = `
-      <tr>
-        <td colspan="3" style="padding: 10px; text-align: right; color: var(--brand-900); text-transform: uppercase;">
-          TOTALES (${currentEditingDetails.length} operarios):
-        </td>
-        <td style="padding: 10px; text-align: center; color: var(--brand-900); font-weight: 800;">
-          ${Number.isInteger(totalCant) ? totalCant : parseFloat(totalCant.toFixed(2))}
-        </td>
-        <td colspan="2" style="padding: 10px; text-align: right; color: var(--muted);">
-          &mdash;
-        </td>
-        <td style="padding: 10px; text-align: right; color: var(--brand-900); font-weight: 800; font-size: 0.95rem;">
-          S/ ${fmtMoney(totalSol)}
-        </td>
-      </tr>
-    `;
+    if (isJornal) {
+      modalEditarTfoot.innerHTML = `
+        <tr>
+          <td colspan="3" style="padding: 10px; text-align: right; color: var(--brand-900); text-transform: uppercase;">
+            TOTALES (${currentEditingDetails.length} operarios):
+          </td>
+          <td style="padding: 10px; text-align: right; color: var(--brand-900); font-weight: 800;">
+            ${Number.isInteger(totalVu) ? totalVu : parseFloat(totalVu.toFixed(2))}
+          </td>
+          <td style="padding: 10px; text-align: right; color: var(--muted);">&mdash;</td>
+          <td style="padding: 10px; text-align: right; color: var(--brand-900); font-weight: 800; font-size: 0.95rem;">
+            S/ ${fmtMoney(totalSol)}
+          </td>
+        </tr>
+      `;
 
-    if (modalEditarBadge) {
-      modalEditarBadge.textContent = `Total Asignado: ${Number.isInteger(totalCant) ? totalCant : parseFloat(totalCant.toFixed(2))} | S/ ${fmtMoney(totalSol)}`;
+      if (modalEditarBadge) {
+        modalEditarBadge.textContent = `Total Asignado: ${Number.isInteger(totalVu) ? totalVu : parseFloat(totalVu.toFixed(2))} | S/ ${fmtMoney(totalSol)}`;
+      }
+    } else {
+      modalEditarTfoot.innerHTML = `
+        <tr>
+          <td colspan="3" style="padding: 10px; text-align: right; color: var(--brand-900); text-transform: uppercase;">
+            TOTALES (${currentEditingDetails.length} operarios):
+          </td>
+          <td style="padding: 10px; text-align: center; color: var(--brand-900); font-weight: 800;">
+            ${Number.isInteger(totalCant) ? totalCant : parseFloat(totalCant.toFixed(2))}
+          </td>
+          <td colspan="2" style="padding: 10px; text-align: right; color: var(--muted);">&mdash;</td>
+          <td style="padding: 10px; text-align: right; color: var(--brand-900); font-weight: 800; font-size: 0.95rem;">
+            S/ ${fmtMoney(totalSol)}
+          </td>
+        </tr>
+      `;
+
+      if (modalEditarBadge) {
+        modalEditarBadge.textContent = `Total Asignado: ${Number.isInteger(totalCant) ? totalCant : parseFloat(totalCant.toFixed(2))} | S/ ${fmtMoney(totalSol)}`;
+      }
     }
   }
 
@@ -615,14 +664,14 @@
 
     // Validar datos
     for (const d of currentEditingDetails) {
-      if (isNaN(d.cantidad) || d.cantidad < 0) {
+      if (currentEditingHeader.tiptra !== 'J' && (isNaN(d.cantidad) || d.cantidad < 0)) {
         modalEditarAlert.textContent = `La cantidad asignada para ${d.tracod} debe ser un número válido mayor o igual a 0.`;
         modalEditarAlert.className = 'status-alert alert-error';
         modalEditarAlert.style.display = 'block';
         return;
       }
       if (isNaN(d.valor_unitario) || d.valor_unitario < 0) {
-        modalEditarAlert.textContent = `El valor unitario (VU) para ${d.tracod} debe ser un número válido.`;
+        modalEditarAlert.textContent = `${currentEditingHeader.tiptra === 'J' ? 'La cantidad' : 'El valor unitario (VU)'} para ${d.tracod} debe ser un número válido.`;
         modalEditarAlert.className = 'status-alert alert-error';
         modalEditarAlert.style.display = 'block';
         return;
@@ -636,7 +685,7 @@
       const payload = {
         workers: currentEditingDetails.map(d => ({
           tracod: d.tracod,
-          cantidad: Number(d.cantidad || 0),
+          cantidad: currentEditingHeader.tiptra === 'J' ? 1 : Number(d.cantidad || 0),
           valor_unitario: Number(d.valor_unitario || 0),
           tarifa: Number(d.tarifa || 0)
         }))
