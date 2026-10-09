@@ -241,6 +241,47 @@ async function registrarProduccion(data, userContext) {
     }
   }
 
+  // Validación de costuras para Destajo: no permitir exceder las costuras configuradas para la ubicación/lote
+  if (finalTiptra === 'D' && otcod && ubicod) {
+    let targetProcod = (data.procod || '').trim();
+    if (!targetProcod) {
+      const otDet = await produccionDal.obtenerDetallesOt(otcod).catch(() => null);
+      if (otDet && otDet.procod) targetProcod = otDet.procod.trim();
+    }
+    if (targetProcod) {
+      const configMap = await obtenerConfigUbicacionProducto(targetProcod).catch(() => ({}));
+      const ubiConfig = configMap[ubicod.trim()];
+      if (ubiConfig && ubiConfig.cantidad !== null && typeof ubiConfig.cantidad !== 'undefined') {
+        const totalCosturasConfig = parseInt(ubiConfig.cantidad, 10) || 0;
+        if (totalCosturasConfig > 0) {
+          let prevCosturas = 0;
+          if (finalLotcod) {
+            const costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod).catch(() => ({}));
+            prevCosturas = costurasMap[finalLotcod] || 0;
+          }
+          const remaining = Math.max(totalCosturasConfig - prevCosturas, 0);
+
+          if (finalLotcod && prevCosturas >= totalCosturasConfig) {
+            throw new Error(`NO SE PUEDE REGISTRAR: El lote ${finalLotcod} ya tiene todas las costuras completadas (${prevCosturas}/${totalCosturasConfig}).`);
+          }
+
+          if (Array.isArray(workers) && workers.length > 0) {
+            const coveredCosturas = new Set(workers.map(w => parseInt(w.costuraNum || w.cantidad || 1, 10)));
+            const maxWorkerCostura = Math.max(...Array.from(coveredCosturas));
+
+            if (maxWorkerCostura > totalCosturasConfig) {
+              throw new Error(`NO SE PUEDE REGISTRAR: La costura #${maxWorkerCostura} excede el máximo de ${totalCosturasConfig} costura(s) configurada(s) para esta ubicación.`);
+            }
+
+            if (finalLotcod && coveredCosturas.size > remaining) {
+              throw new Error(`NO SE PUEDE REGISTRAR: La cantidad de costuras a ingresar (${coveredCosturas.size}) excede las ${remaining} costura(s) disponible(s) para este lote (total configurado: ${totalCosturasConfig}).`);
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Ejecutar el Stored Procedure PA_TAL_CONTROL_PRODUCCION en FTALLER
   const spParams = {
     empcod: actorEmpcod,

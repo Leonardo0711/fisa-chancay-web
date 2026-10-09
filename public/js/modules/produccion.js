@@ -108,6 +108,41 @@
           });
           renderSelectedOperarios();
         }
+      } else {
+        // --- VALIDACIÓN DESTAJO: Control de límite de costuras ---
+        const totalConfig = (config && config.cantidad !== null && typeof config.cantidad !== 'undefined')
+          ? parseInt(config.cantidad, 10) : 0;
+        if (totalConfig > 0) {
+          const prevCosturas = getSelectedLotPrevCosturas();
+          const remaining = Math.max(totalConfig - prevCosturas, 0);
+          const val = parseInt(inputCantidadIngresar.value || 0, 10);
+
+          if (prevCosturas >= totalConfig) {
+            showAlert(`ATENCIÓN: ESTE LOTE YA COMPLETÓ TODAS LAS COSTURAS CONFIGURADAS (${prevCosturas}/${totalConfig})`, 'error');
+            badgCant.textContent = `Completado (${prevCosturas}/${totalConfig})`;
+            badgCant.style.color = '#dc2626';
+            badgCant.style.fontWeight = '800';
+            if (btnAccept) btnAccept.disabled = true;
+            return;
+          } else if (val > remaining) {
+            showAlert(`LA CANTIDAD DE COSTURAS (${val}) EXCEDE EL MÁXIMO PERMITIDO (${remaining} restante${remaining === 1 ? '' : 's'} de ${totalConfig} configurada${totalConfig === 1 ? '' : 's'} para este lote)`, 'error');
+            badgCant.textContent = `¡EXCEDE! Max: ${remaining}`;
+            badgCant.style.color = '#dc2626';
+            badgCant.style.fontWeight = '800';
+            if (btnAccept) btnAccept.disabled = true;
+            return;
+          } else if (val <= 0) {
+            badgCant.textContent = `Pend: ${remaining}/${totalConfig}`;
+            badgCant.style.color = '';
+            badgCant.style.fontWeight = '';
+          } else {
+            hideAlert();
+            badgCant.textContent = `Pend: ${remaining}/${totalConfig}`;
+            badgCant.style.color = '';
+            badgCant.style.fontWeight = '';
+            if (btnAccept) btnAccept.disabled = false;
+          }
+        }
       }
       recalculateWorkerValues();
       saveFormDraft();
@@ -328,12 +363,28 @@
 
       const prevCosturas = getSelectedLotPrevCosturas();
       const config = getCurrentLocationConfig();
-      if (config && config.cantidad !== null && typeof config.cantidad !== 'undefined') {
+      const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
+
+      if (!isJornal && config && config.cantidad !== null && typeof config.cantidad !== 'undefined') {
         const totalConfig = parseInt(config.cantidad, 10) || 0;
-        const remaining = Math.max(totalConfig - prevCosturas, 1);
-        if (!inputCantidadIngresar.value || inputCantidadIngresar.dataset.autoFilled === '1') {
+        if (totalConfig > 0) {
+          const remaining = Math.max(totalConfig - prevCosturas, 0);
           inputCantidadIngresar.value = remaining;
           inputCantidadIngresar.dataset.autoFilled = '1';
+
+          if (remaining === 0) {
+            showAlert(`ATENCIÓN: EL LOTE SELECCIONADO YA TIENE COMPLETADAS TODAS LAS COSTURAS (${prevCosturas}/${totalConfig})`, 'error');
+            badgCant.textContent = `Completado (${prevCosturas}/${totalConfig})`;
+            badgCant.style.color = '#dc2626';
+            badgCant.style.fontWeight = '800';
+            if (btnAccept) btnAccept.disabled = true;
+          } else {
+            hideAlert();
+            badgCant.textContent = `Pend: ${remaining}/${totalConfig}`;
+            badgCant.style.color = '';
+            badgCant.style.fontWeight = '';
+            if (btnAccept) btnAccept.disabled = false;
+          }
         }
       }
     } else {
@@ -835,11 +886,23 @@
       return;
     }
 
-    // --- MODO DESTAJO (100% INTACTO) ---
+    // --- MODO DESTAJO ---
     const prevCosturas = getSelectedLotPrevCosturas();
     const startCostura = prevCosturas + 1;
     const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
-    const maxCostura = cantCosturas > 0 ? (startCostura + cantCosturas - 1) : (startCostura + modalSelectedCodes.length - 1);
+    const totalConfig = (config && config.cantidad !== null && typeof config.cantidad !== 'undefined')
+      ? parseInt(config.cantidad, 10) : 0;
+    const limitCostura = totalConfig > 0 ? totalConfig : 9999;
+
+    if (totalConfig > 0 && startCostura > limitCostura) {
+      showAlert(`NO SE PUEDE ASIGNAR: Este lote ya completó el límite de ${totalConfig} costura(s) configurada(s).`, 'error');
+      closeOperarioModal();
+      return;
+    }
+
+    const maxCostura = cantCosturas > 0 
+      ? Math.min(startCostura + cantCosturas - 1, limitCostura) 
+      : Math.min(startCostura + modalSelectedCodes.length - 1, limitCostura);
 
     const newSelected = new Map();
 
@@ -851,6 +914,9 @@
       let assignedCostura = startCostura + index;
       if (cantCosturas > 0 && assignedCostura > maxCostura) {
         assignedCostura = maxCostura;
+      }
+      if (assignedCostura > limitCostura) {
+        assignedCostura = limitCostura;
       }
 
       newSelected.set(code, {
@@ -1046,12 +1112,22 @@
       return;
     }
 
+    const totalConfig = (config && config.cantidad !== null && typeof config.cantidad !== 'undefined')
+      ? parseInt(config.cantidad, 10) : 0;
+    const limitCostura = totalConfig > 0 ? totalConfig : 9999;
+
     // Rango de costuras para esta tanda: desde startCostura hasta startCostura + cantCosturas - 1
     let minCostura = startCostura;
-    let maxCostura = cantCosturas > 0 ? (startCostura + cantCosturas - 1) : startCostura;
+    let maxCostura = cantCosturas > 0 ? Math.min(startCostura + cantCosturas - 1, limitCostura) : Math.min(startCostura, limitCostura);
+    if (totalConfig > 0 && minCostura > limitCostura) {
+      minCostura = limitCostura;
+    }
 
     const costuraCounts = {};
     selectedOperarios.forEach(op => {
+      if (totalConfig > 0 && op.costuraNum > limitCostura) {
+        op.costuraNum = limitCostura;
+      }
       const c = op.costuraNum || startCostura;
       costuraCounts[c] = (costuraCounts[c] || 0) + 1;
       if (c < minCostura) minCostura = c;
@@ -1502,15 +1578,36 @@
         });
       });
     } else {
-      // --- MODO DESTAJO (100% INTACTO) ---
+      // --- MODO DESTAJO ---
       const prevCosturas = getSelectedLotPrevCosturas();
       const startCostura = prevCosturas + 1;
+      const totalConfig = (config && config.cantidad !== null && typeof config.cantidad !== 'undefined')
+        ? parseInt(config.cantidad, 10) : 0;
+
+      if (totalConfig > 0 && prevCosturas >= totalConfig) {
+        showAlert(`NO SE PUEDE REGISTRAR: El lote seleccionado ya tiene las ${totalConfig} costura(s) completadas para esta ubicación.`, 'error');
+        return;
+      }
 
       // Obtener las costuras cubiertas por los operarios asignados
       const coveredCosturas = new Set();
       selectedOperarios.forEach(op => {
         if (op.costuraNum) coveredCosturas.add(op.costuraNum);
       });
+
+      if (totalConfig > 0) {
+        const invalidCosturas = Array.from(coveredCosturas).filter(c => c > totalConfig);
+        if (invalidCosturas.length > 0) {
+          showAlert(`NO SE PUEDE REGISTRAR: La(s) costura(s) #${invalidCosturas.join(', #')} excede(n) el total de ${totalConfig} costura(s) configurada(s) para esta ubicación.`, 'error');
+          return;
+        }
+
+        const remaining = Math.max(totalConfig - prevCosturas, 0);
+        if (coveredCosturas.size > remaining) {
+          showAlert(`NO SE PUEDE REGISTRAR: Ha seleccionado ${coveredCosturas.size} costura(s), pero solo queda(n) ${remaining} disponible(s) para este lote (de ${totalConfig} configurada(s)).`, 'error');
+          return;
+        }
+      }
 
       const sortedCovered = Array.from(coveredCosturas).sort((a, b) => a - b);
       const firstCovered = sortedCovered[0];
