@@ -211,10 +211,10 @@ async function registrarProduccion(data, userContext) {
   if (Array.isArray(workers) && workers.length > 0) {
     finalTraCod = workers.map(w => String(w.usucod || w.tracod || '').trim()).join('|');
     if (finalTiptra === 'J') {
-      finalCantStr = workers.map(w => String(w.cantidad !== undefined ? w.cantidad : 0).trim()).join('|');
-      finalVuStr = workers.map(w => String(Number(w.vu !== undefined ? w.vu : (w.valor_unitario || 0)).toFixed(2)).trim()).join('|');
-      finalCantidad = workers.reduce((sum, w) => sum + Number(w.cantidad || 0), 0);
-      finalVu = workers.length > 0 ? Number(workers[0].vu !== undefined ? workers[0].vu : (workers[0].valor_unitario || 0)) : parseFloat(vuIngresar || 0);
+      finalCantStr = workers.map(() => '1').join('|');
+      finalVuStr = workers.map(w => String(Number(w.vu !== undefined ? w.vu : (w.valor_unitario || w.cantidad || 0)).toFixed(2)).trim()).join('|');
+      finalCantidad = workers.reduce((sum, w) => sum + Number(w.vu !== undefined ? w.vu : (w.valor_unitario || w.cantidad || 0)), 0);
+      finalVu = finalCantidad;
     } else {
       finalCantStr = workers.map(w => String(w.costuraNum || w.cantidad || 1).trim()).join('|');
       finalVuStr = workers.map(w => String(Number(w.vu !== undefined ? w.vu : (w.valor_unitario || 0)).toFixed(2)).trim()).join('|');

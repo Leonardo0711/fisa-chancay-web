@@ -92,7 +92,8 @@
         if (!isNaN(val) && val >= 0) {
           const perOp = parseFloat((val / selectedOperarios.size).toFixed(2));
           selectedOperarios.forEach(op => {
-            op.cantidad = perOp;
+            op.vu = perOp;
+            op.cantidad = 1;
           });
         }
       }
@@ -800,9 +801,9 @@
         newSelected.set(code, {
           usucod: opObj.usucod,
           usunom: opObj.usunom,
-          costuraNum: 0,
-          cantidad: prev ? prev.cantidad : cantPorOp,
-          vu: prev ? prev.vu : baseVu
+          costuraNum: 1,
+          cantidad: 1,
+          vu: prev ? (prev.vu || prev.cantidad) : cantPorOp
         });
       });
 
@@ -1252,18 +1253,17 @@
   function renderJornalOperarios() {
     operariosTbody.innerHTML = '';
 
-    // Cabeceras específicas para modo Jornal: # | CÓDIGO | NOMBRE | CANTIDAD | VU | ACC.
+    // Estructura de cabecera 100% UNIFORME a Destajo
     const operTable = document.getElementById('operariosTable');
     if (operTable) {
       const thead = operTable.querySelector('thead');
       if (thead) {
         thead.innerHTML = `
           <tr>
-            <th style="width: 50px; text-align: center; padding: 10px 4px;">#</th>
-            <th style="width: 85px; text-align: left; padding: 10px 6px;">CÓDIGO</th>
+            <th style="width: 85px; text-align: left; padding: 10px 8px;"># COSTURA</th>
+            <th style="width: 80px; text-align: left; padding: 10px 6px;">CÓDIGO</th>
             <th style="min-width: 140px; text-align: left; padding: 10px 6px;">NOMBRE</th>
-            <th style="width: 110px; text-align: center; padding: 10px 4px;">CANTIDAD</th>
-            <th style="width: 100px; text-align: center; padding: 10px 4px;">VU</th>
+            <th style="width: 90px; text-align: center; padding: 10px 4px;">VU</th>
             <th style="width: 65px; text-align: center; padding: 10px 4px;">ACC.</th>
           </tr>
         `;
@@ -1271,17 +1271,23 @@
     }
 
     if (selectedOperarios.size === 0) {
-      operariosTbody.innerHTML = '<tr class="row-empty"><td colspan="6">Ningún operario seleccionado. Utilice el botón "Agregar Operarios" de arriba.</td></tr>';
+      operariosTbody.innerHTML = '<tr class="row-empty"><td colspan="5">Ningún operario seleccionado. Utilice el botón "AGREGAR" de arriba.</td></tr>';
       updateJornalSummary();
       return;
     }
 
-    let idx = 1;
     selectedOperarios.forEach(op => {
       const tr = document.createElement('tr');
+      const formattedVu = op.vu > 0 ? (Number.isInteger(op.vu) ? op.vu : parseFloat(op.vu.toFixed(2))) : '';
+
       tr.innerHTML = `
-        <td style="text-align: center; vertical-align: middle; padding: 8px 4px; font-weight: 800; color: var(--muted);">
-          #${idx++}
+        <td style="vertical-align: middle; padding: 6px 8px; white-space: nowrap;">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span class="drag-handle" style="opacity: 0.5;">⋮⋮</span>
+            <select class="input op-costura-select" disabled style="width: 58px; height: 32px; padding: 2px 4px; font-weight: 800; font-size: 0.88rem; text-align: center; border-radius: 8px; display: inline-block; vertical-align: middle; background: #f0fdf4; border-color: #22c55e; color: #15803d;">
+              <option value="1" selected>1</option>
+            </select>
+          </div>
         </td>
         <td style="font-weight: 800; color: var(--brand-900); font-size: 0.85rem; padding: 8px 6px; vertical-align: middle;">
           ${op.usucod}
@@ -1290,29 +1296,24 @@
           ${formatWorkerName(op.usunom)}
         </td>
         <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
-          <input type="number" class="input op-jornal-cant-input" data-code="${op.usucod}" min="0" step="any" value="${op.cantidad !== undefined ? op.cantidad : ''}" style="width: 88px; height: 34px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900); border-radius: 8px; border: 1.5px solid var(--border-300);" />
-        </td>
-        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
-          <input type="number" class="input op-jornal-vu-input" data-code="${op.usucod}" min="0" step="any" value="${op.vu !== undefined ? op.vu : ''}" style="width: 80px; height: 34px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900); border-radius: 8px; border: 1.5px solid var(--border-300);" />
+          <input type="number" class="input op-vu-input" data-code="${op.usucod}" min="0" step="any" value="${formattedVu}" style="width: 76px; height: 34px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900); border-radius: 8px; border: 1.5px solid var(--border-300); display: inline-block;" />
         </td>
         <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
           <button type="button" class="btn btn-danger btn-remove-op" data-code="${op.usucod}" style="padding: 5px 9px; font-size: 0.78rem; border-radius: 8px;">Quitar</button>
         </td>
       `;
 
-      const cantInp = tr.querySelector('.op-jornal-cant-input');
-      cantInp.addEventListener('input', (e) => {
-        op.cantidad = parseFloat(e.target.value || 0);
+      // VU manual entry listener (en Jornal, el VU representa la cantidad)
+      const vuInput = tr.querySelector('.op-vu-input');
+      vuInput.addEventListener('input', (e) => {
+        const val = parseFloat(e.target.value || 0);
+        op.vu = val;
+        op.cantidad = 1;
         updateJornalSummary();
         saveFormDraft();
       });
 
-      const vuInp = tr.querySelector('.op-jornal-vu-input');
-      vuInp.addEventListener('input', (e) => {
-        op.vu = parseFloat(e.target.value || 0);
-        saveFormDraft();
-      });
-
+      // Quitar listener
       tr.querySelector('.btn-remove-op').addEventListener('click', () => {
         selectedOperarios.delete(op.usucod);
         modalSelectedCodes = modalSelectedCodes.filter(c => c !== op.usucod);
@@ -1327,12 +1328,12 @@
   }
 
   function updateJornalSummary() {
-    let sumCant = 0;
+    let sumVu = 0;
     selectedOperarios.forEach(op => {
-      sumCant += Number(op.cantidad || 0);
+      sumVu += Number(op.vu || 0);
     });
     if (inputCantidadIngresar && selectedOperarios.size > 0) {
-      inputCantidadIngresar.value = Number.isInteger(sumCant) ? sumCant : parseFloat(sumCant.toFixed(2));
+      inputCantidadIngresar.value = Number.isInteger(sumVu) ? sumVu : parseFloat(sumVu.toFixed(2));
     }
   }
 
@@ -1442,7 +1443,7 @@
 
     if (!isDestajo) {
       // --- MODO JORNAL ---
-      cantidadIngresar = Array.from(selectedOperarios.values()).reduce((sum, op) => sum + Number(op.cantidad || 0), 0);
+      cantidadIngresar = Array.from(selectedOperarios.values()).reduce((sum, op) => sum + Number(op.vu !== undefined ? op.vu : (op.cantidad || 0)), 0);
       if (cantidadIngresar <= 0) {
         showAlert('LA CANTIDAD TOTAL ASIGNADA A LOS OPERARIOS DEBE SER MAYOR A 0', 'error');
         return;
@@ -1450,7 +1451,8 @@
       selectedOperarios.forEach(op => {
         workersList.push({
           usucod: op.usucod,
-          cantidad: Number(op.cantidad || 0),
+          costuraNum: 1,
+          cantidad: 1,
           vu: Number(op.vu || 0),
           valor_unitario: Number(op.vu || 0)
         });

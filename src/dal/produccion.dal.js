@@ -656,7 +656,7 @@ async function actualizarRegistroProduccion(cpcod, updateData, userContext) {
     // Calcular nueva cantidad total de cabecera
     let finalCantidad = 0;
     if (tiptra === 'J') {
-      finalCantidad = workers.reduce((sum, w) => sum + Number(w.cantidad || 0), 0);
+      finalCantidad = workers.reduce((sum, w) => sum + Number(w.valor_unitario !== undefined ? w.valor_unitario : (w.vu || w.cantidad || 0)), 0);
     } else {
       const costuras = new Set(workers.map(w => Number(w.cantidad || w.costuraNum || 1)));
       finalCantidad = costuras.size;
@@ -701,7 +701,7 @@ async function actualizarRegistroProduccion(cpcod, updateData, userContext) {
       const w = workers[i];
       const cpnum = i + 1;
       const tracod = String(w.tracod || w.usucod || '').trim();
-      const cantDet = Number(w.cantidad || 0);
+      const cantDet = tiptra === 'J' ? 1 : Number(w.cantidad || 0);
       const vuDet = Number(w.valor_unitario !== undefined ? w.valor_unitario : (w.vu || 0));
       const tarDet = w.tarifa !== undefined ? Number(w.tarifa) : tarifa;
 
