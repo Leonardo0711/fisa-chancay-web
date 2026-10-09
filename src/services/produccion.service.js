@@ -199,8 +199,9 @@ async function registrarProduccion(data, userContext) {
 
   const finalTiptra = (tiptra || 'D').toUpperCase();
   const finalLotcod = (lotcod || lote || '').trim();
-  const finalCantidad = parseFloat(cantidadIngresar || cantidad || 0);
-  const finalVu = finalTiptra === 'J' ? 0 : parseFloat(vuIngresar || valor_unitario || 0);
+  
+  let finalCantidad = parseFloat(cantidadIngresar || cantidad || 0);
+  let finalVu = finalTiptra === 'J' ? 0 : parseFloat(vuIngresar || valor_unitario || 0);
 
   // Armar cadenas de detalle con palotes '|'
   let finalTraCod = sTraCod || '';
@@ -209,8 +210,15 @@ async function registrarProduccion(data, userContext) {
 
   if (Array.isArray(workers) && workers.length > 0) {
     finalTraCod = workers.map(w => String(w.usucod || w.tracod || '').trim()).join('|');
-    finalCantStr = workers.map(w => String(w.costuraNum || w.cantidad || 1).trim()).join('|');
-    finalVuStr = workers.map(w => String(finalTiptra === 'J' ? '0' : Number(w.vu !== undefined ? w.vu : (w.valor_unitario || 0)).toFixed(2)).trim()).join('|');
+    if (finalTiptra === 'J') {
+      finalCantStr = workers.map(w => String(w.cantidad !== undefined ? w.cantidad : 0).trim()).join('|');
+      finalVuStr = workers.map(w => String(Number(w.vu !== undefined ? w.vu : (w.valor_unitario || 0)).toFixed(2)).trim()).join('|');
+      finalCantidad = workers.reduce((sum, w) => sum + Number(w.cantidad || 0), 0);
+      finalVu = workers.length > 0 ? Number(workers[0].vu !== undefined ? workers[0].vu : (workers[0].valor_unitario || 0)) : parseFloat(vuIngresar || 0);
+    } else {
+      finalCantStr = workers.map(w => String(w.costuraNum || w.cantidad || 1).trim()).join('|');
+      finalVuStr = workers.map(w => String(Number(w.vu !== undefined ? w.vu : (w.valor_unitario || 0)).toFixed(2)).trim()).join('|');
+    }
   }
 
   if (!finalTraCod) {
@@ -330,6 +338,17 @@ async function eliminarRegistroProduccion(cpcod, userContext) {
   return produccionDal.eliminarRegistroProduccion(cpcod, empcod);
 }
 
+async function obtenerSaldoPendienteJornal(otcod, ubicod, procod) {
+  return produccionDal.obtenerSaldoPendienteJornal(otcod, ubicod, procod);
+}
+
+async function actualizarRegistroProduccion(cpcod, updateData, userContext) {
+  if (!cpcod) {
+    throw new Error('Código de control de producción no especificado.');
+  }
+  return produccionDal.actualizarRegistroProduccion(cpcod, updateData, userContext);
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
@@ -341,6 +360,8 @@ module.exports = {
   listarRegistros,
   obtenerDetalleRegistro,
   generarReporteCsv,
-  eliminarRegistroProduccion
+  eliminarRegistroProduccion,
+  obtenerSaldoPendienteJornal,
+  actualizarRegistroProduccion
 };
 

@@ -14,7 +14,7 @@
   const btnRefresh = document.getElementById('btnRefreshRegs');
   const btnExport = document.getElementById('btnExportExcel');
 
-  // DOM Elements - Modal
+  // DOM Elements - Modal Detalle
   const modalDetalle = document.getElementById('modalDetalle');
   const modalTitle = document.getElementById('modalDetalleTitle');
   const modalResumen = document.getElementById('modalCabeceraResumen');
@@ -22,6 +22,18 @@
   const modalTfoot = document.getElementById('modalDetalleTfoot');
   const btnCloseModal = document.getElementById('btnCloseModalDetalle');
   const btnCerrarModal = document.getElementById('btnCerrarModalDetalle');
+
+  // DOM Elements - Modal Editar
+  const modalEditar = document.getElementById('modalEditar');
+  const modalEditarTitle = document.getElementById('modalEditarTitle');
+  const modalEditarResumen = document.getElementById('modalEditarResumen');
+  const modalEditarBadge = document.getElementById('modalEditarBalanceBadge');
+  const modalEditarTbody = document.getElementById('modalEditarTbody');
+  const modalEditarTfoot = document.getElementById('modalEditarTfoot');
+  const modalEditarAlert = document.getElementById('modalEditarAlert');
+  const btnCloseModalEditar = document.getElementById('btnCloseModalEditar');
+  const btnCancelarModalEditar = document.getElementById('btnCancelarModalEditar');
+  const btnGuardarModalEditar = document.getElementById('btnGuardarModalEditar');
 
   // Event Listeners - Filters
   if (searchInput) {
@@ -46,9 +58,13 @@
     btnExport.addEventListener('click', handleExportExcel);
   }
 
-  // Event Listeners - Modal Close
+  // Event Listeners - Modal Close & Edit Handlers
   if (btnCloseModal) btnCloseModal.addEventListener('click', closeModal);
   if (btnCerrarModal) btnCerrarModal.addEventListener('click', closeModal);
+
+  if (btnCloseModalEditar) btnCloseModalEditar.addEventListener('click', closeEditModal);
+  if (btnCancelarModalEditar) btnCancelarModalEditar.addEventListener('click', closeEditModal);
+  if (btnGuardarModalEditar) btnGuardarModalEditar.addEventListener('click', saveEditModal);
 
   if (modalDetalle) {
     modalDetalle.addEventListener('click', (e) => {
@@ -58,9 +74,18 @@
     });
   }
 
+  if (modalEditar) {
+    modalEditar.addEventListener('click', (e) => {
+      if (e.target === modalEditar) {
+        closeEditModal();
+      }
+    });
+  }
+
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modalDetalle && modalDetalle.classList.contains('active')) {
-      closeModal();
+    if (e.key === 'Escape') {
+      if (modalDetalle && modalDetalle.classList.contains('active')) closeModal();
+      if (modalEditar && modalEditar.classList.contains('active')) closeEditModal();
     }
   });
 
@@ -198,6 +223,13 @@
           <button type="button" class="btn btn-soft btn-open-detail" style="padding: 4px 10px; font-size: 0.78rem; font-weight: 700;" data-cpcod="${h.cpcod}">
             Ver Detalle
           </button>
+          <button type="button" class="btn btn-warning btn-edit-record" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 700; margin-left: 6px; display: inline-flex; align-items: center; gap: 4px;" data-cpcod="${h.cpcod}" title="Editar registro">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+            Editar
+          </button>
           <button type="button" class="btn btn-danger btn-delete-record" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 700; margin-left: 6px;" data-cpcod="${h.cpcod}" title="Eliminar registro">
             Eliminar
           </button>
@@ -208,6 +240,15 @@
       tr.addEventListener('click', () => {
         openDetailModal(h);
       });
+
+      // Clic en Editar
+      const btnEdit = tr.querySelector('.btn-edit-record');
+      if (btnEdit) {
+        btnEdit.addEventListener('click', (e) => {
+          e.stopPropagation();
+          openEditModal(h);
+        });
+      }
 
       // Clic en Eliminar
       const btnDelete = tr.querySelector('.btn-delete-record');
@@ -378,6 +419,252 @@
     }
   }
 
+  // --- Modal Editar Operations ---
+  let currentEditingHeader = null;
+  let currentEditingDetails = [];
+
+  async function openEditModal(header) {
+    if (!modalEditar) return;
+    currentEditingHeader = header;
+    modalEditarTitle.textContent = `Editar Registro #${header.cpcod}`;
+    modalEditarAlert.style.display = 'none';
+
+    const fechaFmt = header.fecusucre ? formatDateTime(header.fecusucre) : '---';
+    modalEditarResumen.innerHTML = `
+      <div>
+        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Orden de Trabajo</span>
+        <strong style="color: var(--brand-900); font-size: 0.95rem;">${header.otcod}</strong>
+      </div>
+      <div>
+        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Lote</span>
+        <strong style="color: var(--text-900); font-family: monospace;">${header.lotcod || '---'}</strong>
+      </div>
+      <div>
+        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Tipo de Trabajo</span>
+        <strong style="color: ${header.tiptra === 'D' ? 'var(--brand-700)' : '#d97706'}; font-weight: 800;">
+          ${header.tiptraDesc || (header.tiptra === 'D' ? 'DESTAJO' : 'JORNAL')}
+        </strong>
+      </div>
+      <div>
+        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Ubicación</span>
+        <strong style="color: var(--text-900);">${header.ubicod} - ${header.ubinom}</strong>
+      </div>
+      <div>
+        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Tarifa Registrada</span>
+        <strong style="color: var(--text-900);">${header.tiptra === 'D' ? 'S/ ' + fmtMoney(header.tarifa) : '---'}</strong>
+      </div>
+      <div>
+        <span style="color: var(--muted); display: block; font-size: 0.75rem; text-transform: uppercase;">Fecha Creación</span>
+        <span style="color: var(--text-800);">${fechaFmt}</span>
+      </div>
+    `;
+
+    modalEditarTbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align: center; padding: 24px; color: var(--muted);">
+          Cargando datos para edición...
+        </td>
+      </tr>
+    `;
+    modalEditarTfoot.innerHTML = '';
+    modalEditar.classList.add('active');
+
+    try {
+      let details;
+      if (loadedDetails.has(header.cpcod)) {
+        details = JSON.parse(JSON.stringify(loadedDetails.get(header.cpcod)));
+      } else {
+        const raw = await window.AppFetch(`/api/produccion/registros/${encodeURIComponent(header.cpcod)}/detalle`);
+        loadedDetails.set(header.cpcod, raw);
+        details = JSON.parse(JSON.stringify(raw));
+      }
+      currentEditingDetails = details;
+      renderModalEditRows(details, header);
+    } catch (err) {
+      console.error('Error al cargar detalle para edición:', err);
+      modalEditarTbody.innerHTML = `
+        <tr>
+          <td colspan="7" style="text-align: center; padding: 20px; color: var(--danger); font-weight: 700;">
+            No se pudo obtener el detalle: ${err.message}
+          </td>
+        </tr>
+      `;
+    }
+  }
+
+  function renderModalEditRows(details, header) {
+    if (!details || details.length === 0) {
+      modalEditarTbody.innerHTML = '<tr class="row-empty"><td colspan="7">No hay operarios en este registro.</td></tr>';
+      modalEditarTfoot.innerHTML = '';
+      return;
+    }
+
+    const isDestajo = header.tiptra === 'D';
+    let rowsHtml = '';
+
+    details.forEach((d, idx) => {
+      const tarifaVal = Number(d.tarifa || header.tarifa || 0);
+      const subtotal = isDestajo 
+        ? (Number(d.valor_unitario || 0) * tarifaVal) 
+        : (Number(d.cantidad || 0) * Number(d.valor_unitario || 0) * (tarifaVal > 0 ? tarifaVal : 1));
+
+      rowsHtml += `
+        <tr data-index="${idx}">
+          <td style="text-align: center; padding: 8px; font-weight: 700; color: var(--muted);">
+            ${d.cpnum || (idx + 1)}
+          </td>
+          <td style="padding: 8px; font-family: monospace; font-weight: 800; color: var(--brand-900);">
+            ${d.tracod}
+          </td>
+          <td style="padding: 8px; font-weight: 700; color: var(--text-900);">
+            ${d.traraz || '---'}
+          </td>
+          <td style="text-align: center; padding: 6px;">
+            <input type="number" class="input edit-cant-input" data-index="${idx}" value="${d.cantidad}" min="0" step="any" style="width: 84px; height: 32px; text-align: center; font-weight: 800; font-size: 0.9rem; padding: 2px 4px; border-radius: 6px;" />
+          </td>
+          <td style="text-align: right; padding: 6px;">
+            <input type="number" class="input edit-vu-input" data-index="${idx}" value="${d.valor_unitario}" min="0" step="0.01" style="width: 80px; height: 32px; text-align: right; font-weight: 800; font-size: 0.9rem; padding: 2px 4px; border-radius: 6px;" />
+          </td>
+          <td style="text-align: right; padding: 8px; color: var(--text-800);">
+            ${isDestajo ? ('S/ ' + fmtMoney(tarifaVal)) : (tarifaVal > 0 ? ('S/ ' + fmtMoney(tarifaVal)) : '---')}
+          </td>
+          <td style="text-align: right; padding: 8px; font-weight: 800; color: var(--brand-900);" class="edit-row-subtotal">
+            S/ ${fmtMoney(subtotal)}
+          </td>
+        </tr>
+      `;
+    });
+
+    modalEditarTbody.innerHTML = rowsHtml;
+
+    // Listeners para recálculo dinámico en vivo
+    modalEditarTbody.querySelectorAll('.edit-cant-input').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const i = parseInt(e.target.dataset.index, 10);
+        details[i].cantidad = parseFloat(e.target.value || 0);
+        recalculateModalEditTotals(header);
+      });
+    });
+
+    modalEditarTbody.querySelectorAll('.edit-vu-input').forEach(inp => {
+      inp.addEventListener('input', (e) => {
+        const i = parseInt(e.target.dataset.index, 10);
+        details[i].valor_unitario = parseFloat(e.target.value || 0);
+        recalculateModalEditTotals(header);
+      });
+    });
+
+    recalculateModalEditTotals(header);
+  }
+
+  function recalculateModalEditTotals(header) {
+    if (!currentEditingDetails) return;
+    const isDestajo = header.tiptra === 'D';
+    let totalCant = 0;
+    let totalSol = 0;
+
+    currentEditingDetails.forEach((d, idx) => {
+      const cant = Number(d.cantidad || 0);
+      const vu = Number(d.valor_unitario || 0);
+      const tarifaVal = Number(d.tarifa || header.tarifa || 0);
+      totalCant += cant;
+
+      const subtotal = isDestajo 
+        ? (vu * tarifaVal) 
+        : (cant * vu * (tarifaVal > 0 ? tarifaVal : 1));
+      totalSol += subtotal;
+
+      const row = modalEditarTbody.querySelector(`tr[data-index="${idx}"]`);
+      if (row) {
+        const subtotalCell = row.querySelector('.edit-row-subtotal');
+        if (subtotalCell) subtotalCell.textContent = 'S/ ' + fmtMoney(subtotal);
+      }
+    });
+
+    modalEditarTfoot.innerHTML = `
+      <tr>
+        <td colspan="3" style="padding: 10px; text-align: right; color: var(--brand-900); text-transform: uppercase;">
+          TOTALES (${currentEditingDetails.length} operarios):
+        </td>
+        <td style="padding: 10px; text-align: center; color: var(--brand-900); font-weight: 800;">
+          ${Number.isInteger(totalCant) ? totalCant : parseFloat(totalCant.toFixed(2))}
+        </td>
+        <td colspan="2" style="padding: 10px; text-align: right; color: var(--muted);">
+          &mdash;
+        </td>
+        <td style="padding: 10px; text-align: right; color: var(--brand-900); font-weight: 800; font-size: 0.95rem;">
+          S/ ${fmtMoney(totalSol)}
+        </td>
+      </tr>
+    `;
+
+    if (modalEditarBadge) {
+      modalEditarBadge.textContent = `Total Asignado: ${Number.isInteger(totalCant) ? totalCant : parseFloat(totalCant.toFixed(2))} | S/ ${fmtMoney(totalSol)}`;
+    }
+  }
+
+  async function saveEditModal() {
+    if (!currentEditingHeader || !currentEditingDetails) return;
+    modalEditarAlert.style.display = 'none';
+
+    // Validar datos
+    for (const d of currentEditingDetails) {
+      if (isNaN(d.cantidad) || d.cantidad < 0) {
+        modalEditarAlert.textContent = `La cantidad asignada para ${d.tracod} debe ser un número válido mayor o igual a 0.`;
+        modalEditarAlert.className = 'status-alert alert-error';
+        modalEditarAlert.style.display = 'block';
+        return;
+      }
+      if (isNaN(d.valor_unitario) || d.valor_unitario < 0) {
+        modalEditarAlert.textContent = `El valor unitario (VU) para ${d.tracod} debe ser un número válido.`;
+        modalEditarAlert.className = 'status-alert alert-error';
+        modalEditarAlert.style.display = 'block';
+        return;
+      }
+    }
+
+    try {
+      btnGuardarModalEditar.disabled = true;
+      btnGuardarModalEditar.textContent = 'Guardando...';
+
+      const payload = {
+        workers: currentEditingDetails.map(d => ({
+          tracod: d.tracod,
+          cantidad: Number(d.cantidad || 0),
+          valor_unitario: Number(d.valor_unitario || 0),
+          tarifa: Number(d.tarifa || 0)
+        }))
+      };
+
+      const res = await window.AppFetch(`/api/produccion/registros/${encodeURIComponent(currentEditingHeader.cpcod)}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+
+      if (window.StatusBar && typeof window.StatusBar.showMessage === 'function') {
+        window.StatusBar.showMessage(res.message || `Registro #${currentEditingHeader.cpcod} actualizado exitosamente.`, 'success');
+      }
+
+      loadedDetails.delete(currentEditingHeader.cpcod);
+      closeEditModal();
+      await loadHeaders();
+    } catch (err) {
+      console.error('Error guardando cambios:', err);
+      modalEditarAlert.textContent = 'Error al guardar cambios: ' + err.message;
+      modalEditarAlert.className = 'status-alert alert-error';
+      modalEditarAlert.style.display = 'block';
+    } finally {
+      btnGuardarModalEditar.disabled = false;
+      btnGuardarModalEditar.textContent = 'Guardar Cambios';
+    }
+  }
+
+  function closeEditModal() {
+    if (modalEditar) modalEditar.classList.remove('active');
+    currentEditingHeader = null;
+    currentEditingDetails = [];
+  }
+
   async function confirmDeleteRecord(cpcod) {
     if (!confirm(`¿Está seguro de eliminar el registro de control #${cpcod}?\n\nEsta acción eliminará el detalle de operarios y la cabecera permanentemente.`)) {
       return;
@@ -390,7 +677,7 @@
         window.StatusBar.showMessage(res.message || `Registro #${cpcod} eliminado correctamente`, 'success');
       }
       loadedDetails.delete(cpcod);
-      await loadProduccionHeaders();
+      await loadHeaders();
     } catch (err) {
       console.error('Error eliminando registro:', err);
       if (window.StatusBar && typeof window.StatusBar.showMessage === 'function') {

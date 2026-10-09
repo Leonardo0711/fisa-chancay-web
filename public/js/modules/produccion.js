@@ -85,6 +85,17 @@
 
   if (inputCantidadIngresar) {
     inputCantidadIngresar.addEventListener('input', () => {
+      const config = getCurrentLocationConfig();
+      const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
+      if (isJornal && selectedOperarios.size > 0) {
+        const val = parseFloat(inputCantidadIngresar.value || 0);
+        if (!isNaN(val) && val >= 0) {
+          const perOp = parseFloat((val / selectedOperarios.size).toFixed(2));
+          selectedOperarios.forEach(op => {
+            op.cantidad = perOp;
+          });
+        }
+      }
       recalculateWorkerValues();
       renderSelectedOperarios();
       saveFormDraft();
@@ -93,6 +104,16 @@
 
   if (inputVuIngresar) {
     inputVuIngresar.addEventListener('input', () => {
+      const config = getCurrentLocationConfig();
+      const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
+      if (isJornal && selectedOperarios.size > 0) {
+        const vuVal = parseFloat(inputVuIngresar.value || 0);
+        if (!isNaN(vuVal) && vuVal >= 0) {
+          selectedOperarios.forEach(op => {
+            op.vu = vuVal;
+          });
+        }
+      }
       recalculateWorkerValues();
       renderSelectedOperarios();
       saveFormDraft();
@@ -491,14 +512,39 @@
       inputCantidadIngresar.style.background = '#fff';
       badgCant.textContent = uCant;
 
-      inputVuIngresar.value = '';
-      inputVuIngresar.readOnly = true;
-      inputVuIngresar.style.background = 'var(--surface-100)';
-      badgVu.textContent = '---';
+      inputVuIngresar.value = (config.valorUnitario !== null && typeof config.valorUnitario !== 'undefined') ? config.valorUnitario : '';
+      inputVuIngresar.readOnly = false;
+      inputVuIngresar.style.background = '#fff';
+      badgVu.textContent = uVu;
 
-      document.getElementById('vuFieldGroup').style.display = 'none'; // oculto para Jornal
+      document.getElementById('vuFieldGroup').style.display = 'block';
       document.getElementById('loteFieldGroup').style.display = 'none'; // oculto para Jornal
       selectLote.required = false;
+
+      // Consultar saldo pendiente acumulado en FTALLER para esta OT y ubicación de Jornal
+      if (activeOt) {
+        window.AppFetch(`/api/produccion/ots/${encodeURIComponent(activeOt)}/saldo-jornal?ubicod=${encodeURIComponent(ubicod)}&procod=${encodeURIComponent(activeProduct || '')}`)
+          .then(saldoData => {
+            const totalConfig = saldoData.totalConfigurada || config.cantidad || 0;
+            const reg = saldoData.cantidadRegistrada || 0;
+            const saldo = saldoData.saldoPendiente > 0 ? saldoData.saldoPendiente : (totalConfig > 0 ? Math.max(0, totalConfig - reg) : 0);
+            
+            if (saldo > 0) {
+              inputCantidadIngresar.value = saldo;
+              badgCant.textContent = `Pend: ${saldo}/${totalConfig}`;
+              lblValores.value = `${totalConfig} (Pend: ${saldo}) / ${config.valorUnitario !== null && config.valorUnitario !== undefined ? Number(config.valorUnitario).toFixed(2) : '---'}`;
+            } else if (totalConfig > 0) {
+              inputCantidadIngresar.value = totalConfig;
+              badgCant.textContent = `${totalConfig} ${uCant}`;
+            }
+            recalculateWorkerValues();
+            renderSelectedOperarios();
+            saveFormDraft();
+          })
+          .catch(err => {
+            console.warn('Error obteniendo saldo Jornal:', err.message);
+          });
+      }
     }
 
     // Recalcular valores de operarios
@@ -729,6 +775,47 @@
   }
 
   function addSelectedOperarios() {
+    const config = getCurrentLocationConfig();
+    const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
+
+    if (isJornal) {
+      const totalCant = parseFloat(inputCantidadIngresar ? inputCantidadIngresar.value : 0) || 0;
+      const count = modalSelectedCodes.length;
+      const cantPorOp = (count > 0 && totalCant > 0) ? parseFloat((totalCant / count).toFixed(2)) : 0;
+
+      let baseVu = 0;
+      const vuInputVal = inputVuIngresar ? inputVuIngresar.value.trim() : '';
+      if (vuInputVal !== '') {
+        baseVu = parseFloat(vuInputVal) || 0;
+      } else if (config && config.valorUnitario !== null && config.valorUnitario !== undefined) {
+        baseVu = parseFloat(config.valorUnitario) || 0;
+      }
+
+      const newSelected = new Map();
+      modalSelectedCodes.forEach(code => {
+        const opObj = operariosList.find(o => o.usucod === code);
+        if (!opObj) return;
+
+        const prev = selectedOperarios.get(code);
+        newSelected.set(code, {
+          usucod: opObj.usucod,
+          usunom: opObj.usunom,
+          costuraNum: 0,
+          cantidad: prev ? prev.cantidad : cantPorOp,
+          vu: prev ? prev.vu : baseVu
+        });
+      });
+
+      selectedOperarios.clear();
+      newSelected.forEach((val, key) => selectedOperarios.set(key, val));
+
+      closeOperarioModal();
+      renderSelectedOperarios();
+      saveFormDraft();
+      return;
+    }
+
+    // --- MODO DESTAJO (100% INTACTO) ---
     const prevCosturas = getSelectedLotPrevCosturas();
     const startCostura = prevCosturas + 1;
     const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
@@ -904,6 +991,30 @@
 
   function renderSelectedOperarios() {
     cleanupTouchDrag();
+    const config = getCurrentLocationConfig();
+    const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
+
+    if (isJornal) {
+      renderJornalOperarios();
+      return;
+    }
+
+    // Asegurar cabeceras de Destajo
+    const operTable = document.getElementById('operariosTable');
+    if (operTable) {
+      const thead = operTable.querySelector('thead');
+      if (thead) {
+        thead.innerHTML = `
+          <tr>
+            <th style="width: 85px; text-align: left; padding: 10px 8px;"># COSTURA</th>
+            <th style="width: 80px; text-align: left; padding: 10px 6px;">CÓDIGO</th>
+            <th style="min-width: 140px; text-align: left; padding: 10px 6px;">NOMBRE</th>
+            <th style="width: 90px; text-align: center; padding: 10px 4px;">VU</th>
+            <th style="width: 65px; text-align: center; padding: 10px 4px;">ACC.</th>
+          </tr>
+        `;
+      }
+    }
     operariosTbody.innerHTML = '';
 
     const prevCosturas = getSelectedLotPrevCosturas();
@@ -1136,21 +1247,93 @@
         operariosTbody.appendChild(tr);
       });
     }
+  }
 
-    // Toggle VU inputs for Jornal
-    const config = getCurrentLocationConfig();
-    const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
-    const vuInputs = operariosTbody.querySelectorAll('.op-vu-input');
-    vuInputs.forEach(inp => {
-      if (isJornal) {
-        inp.value = '';
-        inp.disabled = true;
-        inp.style.background = 'var(--surface-100)';
-      } else {
-        inp.disabled = false;
-        inp.style.background = '#fff';
+  function renderJornalOperarios() {
+    operariosTbody.innerHTML = '';
+
+    // Cabeceras específicas para modo Jornal: # | CÓDIGO | NOMBRE | CANTIDAD | VU | ACC.
+    const operTable = document.getElementById('operariosTable');
+    if (operTable) {
+      const thead = operTable.querySelector('thead');
+      if (thead) {
+        thead.innerHTML = `
+          <tr>
+            <th style="width: 50px; text-align: center; padding: 10px 4px;">#</th>
+            <th style="width: 85px; text-align: left; padding: 10px 6px;">CÓDIGO</th>
+            <th style="min-width: 140px; text-align: left; padding: 10px 6px;">NOMBRE</th>
+            <th style="width: 110px; text-align: center; padding: 10px 4px;">CANTIDAD</th>
+            <th style="width: 100px; text-align: center; padding: 10px 4px;">VU</th>
+            <th style="width: 65px; text-align: center; padding: 10px 4px;">ACC.</th>
+          </tr>
+        `;
       }
+    }
+
+    if (selectedOperarios.size === 0) {
+      operariosTbody.innerHTML = '<tr class="row-empty"><td colspan="6">Ningún operario seleccionado. Utilice el botón "Agregar Operarios" de arriba.</td></tr>';
+      updateJornalSummary();
+      return;
+    }
+
+    let idx = 1;
+    selectedOperarios.forEach(op => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="text-align: center; vertical-align: middle; padding: 8px 4px; font-weight: 800; color: var(--muted);">
+          #${idx++}
+        </td>
+        <td style="font-weight: 800; color: var(--brand-900); font-size: 0.85rem; padding: 8px 6px; vertical-align: middle;">
+          ${op.usucod}
+        </td>
+        <td style="padding: 8px 6px; white-space: normal; vertical-align: middle; min-width: 140px;">
+          ${formatWorkerName(op.usunom)}
+        </td>
+        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
+          <input type="number" class="input op-jornal-cant-input" data-code="${op.usucod}" min="0" step="any" value="${op.cantidad !== undefined ? op.cantidad : ''}" style="width: 88px; height: 34px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900); border-radius: 8px; border: 1.5px solid var(--border-300);" />
+        </td>
+        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
+          <input type="number" class="input op-jornal-vu-input" data-code="${op.usucod}" min="0" step="any" value="${op.vu !== undefined ? op.vu : ''}" style="width: 80px; height: 34px; text-align: center; padding: 4px 6px; font-weight: 800; font-size: 0.95rem; color: var(--brand-900); border-radius: 8px; border: 1.5px solid var(--border-300);" />
+        </td>
+        <td style="text-align: center; padding: 6px 4px; vertical-align: middle;">
+          <button type="button" class="btn btn-danger btn-remove-op" data-code="${op.usucod}" style="padding: 5px 9px; font-size: 0.78rem; border-radius: 8px;">Quitar</button>
+        </td>
+      `;
+
+      const cantInp = tr.querySelector('.op-jornal-cant-input');
+      cantInp.addEventListener('input', (e) => {
+        op.cantidad = parseFloat(e.target.value || 0);
+        updateJornalSummary();
+        saveFormDraft();
+      });
+
+      const vuInp = tr.querySelector('.op-jornal-vu-input');
+      vuInp.addEventListener('input', (e) => {
+        op.vu = parseFloat(e.target.value || 0);
+        saveFormDraft();
+      });
+
+      tr.querySelector('.btn-remove-op').addEventListener('click', () => {
+        selectedOperarios.delete(op.usucod);
+        modalSelectedCodes = modalSelectedCodes.filter(c => c !== op.usucod);
+        renderJornalOperarios();
+        saveFormDraft();
+      });
+
+      operariosTbody.appendChild(tr);
     });
+
+    updateJornalSummary();
+  }
+
+  function updateJornalSummary() {
+    let sumCant = 0;
+    selectedOperarios.forEach(op => {
+      sumCant += Number(op.cantidad || 0);
+    });
+    if (inputCantidadIngresar && selectedOperarios.size > 0) {
+      inputCantidadIngresar.value = Number.isInteger(sumCant) ? sumCant : parseFloat(sumCant.toFixed(2));
+    }
   }
 
   /**
@@ -1163,11 +1346,6 @@
     const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
 
     if (isJornal) {
-      selectedOperarios.forEach(op => {
-        op.vu = 0;
-        op.cantidad = 1;
-      });
-      updateVuFieldsInTable();
       return;
     }
 
@@ -1259,45 +1437,65 @@
       return;
     }
 
-    const prevCosturas = getSelectedLotPrevCosturas();
-    const startCostura = prevCosturas + 1;
-
-    // Obtener las costuras cubiertas por los operarios asignados
-    const coveredCosturas = new Set();
-    selectedOperarios.forEach(op => {
-      if (op.costuraNum) coveredCosturas.add(op.costuraNum);
-    });
-
-    const sortedCovered = Array.from(coveredCosturas).sort((a, b) => a - b);
-    const firstCovered = sortedCovered[0];
-    const lastCovered = sortedCovered[sortedCovered.length - 1];
-
-    // Validar que no hayan costuras intermedias vacías entre la primera y la última cubierta
-    const missingIntermediate = [];
-    for (let c = firstCovered; c <= lastCovered; c++) {
-      if (!coveredCosturas.has(c)) {
-        missingIntermediate.push(c);
-      }
-    }
-
-    if (missingIntermediate.length > 0) {
-      showAlert(`ATENCIÓN: LA(S) COSTURA(S) INTERMEDIA(S) #${missingIntermediate.join(', #')} NO TIENEN OPERARIOS ASIGNADOS. POR FAVOR ASIGNE O REUBIQUE OPERARIOS PARA COMPLETAR LA SERIE.`, 'error');
-      return;
-    }
-
-    // Cantidad efectiva de costuras que se ingresan en este registro
-    const cantidadIngresar = coveredCosturas.size;
-
+    let cantidadIngresar = 0;
     const workersList = [];
-    selectedOperarios.forEach(op => {
-      workersList.push({
-        usucod: op.usucod,
-        cantidad: 1,
-        vu: op.vu,
-        valor_unitario: op.vu,
-        costuraNum: op.costuraNum || startCostura
+
+    if (!isDestajo) {
+      // --- MODO JORNAL ---
+      cantidadIngresar = Array.from(selectedOperarios.values()).reduce((sum, op) => sum + Number(op.cantidad || 0), 0);
+      if (cantidadIngresar <= 0) {
+        showAlert('LA CANTIDAD TOTAL ASIGNADA A LOS OPERARIOS DEBE SER MAYOR A 0', 'error');
+        return;
+      }
+      selectedOperarios.forEach(op => {
+        workersList.push({
+          usucod: op.usucod,
+          cantidad: Number(op.cantidad || 0),
+          vu: Number(op.vu || 0),
+          valor_unitario: Number(op.vu || 0)
+        });
       });
-    });
+    } else {
+      // --- MODO DESTAJO (100% INTACTO) ---
+      const prevCosturas = getSelectedLotPrevCosturas();
+      const startCostura = prevCosturas + 1;
+
+      // Obtener las costuras cubiertas por los operarios asignados
+      const coveredCosturas = new Set();
+      selectedOperarios.forEach(op => {
+        if (op.costuraNum) coveredCosturas.add(op.costuraNum);
+      });
+
+      const sortedCovered = Array.from(coveredCosturas).sort((a, b) => a - b);
+      const firstCovered = sortedCovered[0];
+      const lastCovered = sortedCovered[sortedCovered.length - 1];
+
+      // Validar que no hayan costuras intermedias vacías entre la primera y la última cubierta
+      const missingIntermediate = [];
+      for (let c = firstCovered; c <= lastCovered; c++) {
+        if (!coveredCosturas.has(c)) {
+          missingIntermediate.push(c);
+        }
+      }
+
+      if (missingIntermediate.length > 0) {
+        showAlert(`ATENCIÓN: LA(S) COSTURA(S) INTERMEDIA(S) #${missingIntermediate.join(', #')} NO TIENEN OPERARIOS ASIGNADOS. POR FAVOR ASIGNE O REUBIQUE OPERARIOS PARA COMPLETAR LA SERIE.`, 'error');
+        return;
+      }
+
+      // Cantidad efectiva de costuras que se ingresan en este registro
+      cantidadIngresar = coveredCosturas.size;
+
+      selectedOperarios.forEach(op => {
+        workersList.push({
+          usucod: op.usucod,
+          cantidad: 1,
+          vu: op.vu,
+          valor_unitario: op.vu,
+          costuraNum: op.costuraNum || startCostura
+        });
+      });
+    }
 
     // Call backend API REST
     showAlert('Guardando registro en base de datos...', 'info');
@@ -1313,7 +1511,7 @@
         lotcod: loteVal || '',
         cantidadIngresar,
         unicod_cant,
-        vuIngresar: isDestajo ? vuIngresar : 0,
+        vuIngresar: isDestajo ? vuIngresar : (workersList.length > 0 ? workersList[0].vu : vuIngresar),
         workers: workersList
       };
 
@@ -1330,6 +1528,20 @@
       modalSelectedCodes = [];
       renderSelectedOperarios();
       recalculateWorkerValues();
+
+      // Si es Jornal, refrescar el saldo pendiente disponible para la próxima tanda
+      if (!isDestajo && activeOt && ubicod) {
+        window.AppFetch(`/api/produccion/ots/${encodeURIComponent(activeOt)}/saldo-jornal?ubicod=${encodeURIComponent(ubicod)}&procod=${encodeURIComponent(activeProduct || '')}`)
+          .then(saldoData => {
+            const totalConfig = saldoData.totalConfigurada || (config ? config.cantidad : 0) || 0;
+            const reg = saldoData.cantidadRegistrada || 0;
+            const saldo = saldoData.saldoPendiente > 0 ? saldoData.saldoPendiente : (totalConfig > 0 ? Math.max(0, totalConfig - reg) : 0);
+            inputCantidadIngresar.value = saldo;
+            badgCant.textContent = `Pend: ${saldo}/${totalConfig}`;
+            lblValores.value = `${totalConfig} (Pend: ${saldo}) / ${config && config.valorUnitario !== null && config.valorUnitario !== undefined ? Number(config.valorUnitario).toFixed(2) : '---'}`;
+          })
+          .catch(() => {});
+      }
 
       // Recargar lista de lotes por si el lote producido ya no está pendiente
       if (activeOt) {
@@ -1541,7 +1753,7 @@
             usucod: w.usucod,
             usunom: w.usunom,
             costuraNum: cNum,
-            cantidad: 1,
+            cantidad: (draft.tiptra === 'J' && w.cantidad !== undefined) ? w.cantidad : 1,
             vu: w.vu
           });
         });

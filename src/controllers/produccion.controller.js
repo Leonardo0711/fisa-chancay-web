@@ -149,6 +149,31 @@ async function apiEliminarRegistroProduccion(req, res, next) {
   }
 }
 
+async function apiObtenerSaldoJornal(req, res, next) {
+  try {
+    const { otcod } = req.params;
+    const { ubicod, procod } = req.query;
+    const data = await produccionService.obtenerSaldoPendienteJornal(otcod, ubicod, procod);
+    return res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiActualizarRegistroProduccion(req, res, next) {
+  try {
+    const { cpcod } = req.params;
+    const result = await produccionService.actualizarRegistroProduccion(cpcod, req.body, req.user);
+    return res.json({
+      success: true,
+      message: `Registro #${cpcod} actualizado correctamente.`,
+      data: result
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   renderProduccion,
   apiBuscarOts,
@@ -161,6 +186,8 @@ module.exports = {
   apiListarRegistrosProduccion,
   apiObtenerDetalleRegistro,
   apiExportarRegistrosProduccion,
-  apiEliminarRegistroProduccion
+  apiEliminarRegistroProduccion,
+  apiObtenerSaldoJornal,
+  apiActualizarRegistroProduccion
 };
 

@@ -19,9 +19,11 @@ router.get('/api/produccion/operarios', requireAuth, requirePermission('PRODUCCI
 router.post('/api/produccion/registrar', requireAuth, requirePermission('PRODUCCION', 'save'), produccionController.apiRegistrarProduccion);
 
 // Monitor & Export Routes
+router.get('/api/produccion/ots/:otcod/saldo-jornal', requireAuth, requirePermission('PRODUCCION', 'view'), produccionController.apiObtenerSaldoJornal);
 router.get('/api/produccion/registros', requireAuth, produccionController.apiListarRegistrosProduccion);
 router.get('/api/produccion/registros/exportar', requireAuth, produccionController.apiExportarRegistrosProduccion);
 router.get('/api/produccion/registros/:cpcod/detalle', requireAuth, produccionController.apiObtenerDetalleRegistro);
+router.put('/api/produccion/registros/:cpcod', requireAuth, requirePermission('PRODUCCION', 'save'), produccionController.apiActualizarRegistroProduccion);
 router.delete('/api/produccion/registros/:cpcod', requireAuth, produccionController.apiEliminarRegistroProduccion);
 
 module.exports = router;

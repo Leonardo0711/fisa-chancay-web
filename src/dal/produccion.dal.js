@@ -428,7 +428,8 @@ async function obtenerDetalleRegistroProduccion(cpcod) {
         RTRIM(d.tracod) AS tracod,
         d.cantidad,
         d.valor_unitario,
-        COALESCE(NULLIF(d.tarifa, 0), cp.tarifa, 0) AS tarifa
+        COALESCE(NULLIF(d.tarifa, 0), cp.tarifa, 0) AS tarifa,
+        RTRIM(cp.tiptra) AS tiptra
       FROM TAL_CONTROL_PRODUCCION_DETALLE d
       INNER JOIN TAL_CONTROL_PRODUCCION cp ON d.empcod = cp.empcod AND d.cpcod = cp.cpcod
       WHERE d.cpcod = @cpcod
@@ -440,16 +441,27 @@ async function obtenerDetalleRegistroProduccion(cpcod) {
   return res.recordset.map(row => {
     const vu = Number(row.valor_unitario || 0);
     const tar = Number(row.tarifa || 0);
+    const cant = Number(row.cantidad || 0);
+    const isDestajo = row.tiptra === 'D';
+    // Para Destajo, tarifa x vu; Para Jornal, cantidad x vu x (tarifa si existe)
+    let totalLine = 0;
+    if (isDestajo) {
+      totalLine = Number(vu * tar);
+    } else {
+      totalLine = tar > 0 ? Number(cant * vu * tar) : Number(cant * vu);
+    }
+
     return {
       empcod: row.empcod,
       cpcod: row.cpcod,
       cpnum: row.cpnum,
       tracod: row.tracod,
       traraz: workerMap[row.tracod] || row.tracod,
-      cantidad: Number(row.cantidad || 0),
+      cantidad: cant,
       valor_unitario: vu,
       tarifa: tar,
-      total: Number(vu * tar)
+      tiptra: row.tiptra,
+      total: totalLine
     };
   });
 }
@@ -553,12 +565,177 @@ async function eliminarRegistroProduccion(cpcod, empcod = '01') {
   }
 }
 
+/**
+ * Gets configured quantity, registered quantity, and pending balance for a Jornal location in an OT.
+ */
+async function obtenerSaldoPendienteJornal(otcod, ubicod, procod) {
+  if (!otcod || !ubicod) {
+    return { totalConfigurada: 0, cantidadRegistrada: 0, saldoPendiente: 0 };
+  }
+  const pool = await db.connect();
+  const req = pool.request();
+  req.input('otcod', db.sql.Char(25), String(otcod).trim());
+  req.input('ubicod', db.sql.Char(5), String(ubicod).trim());
+
+  let targetProcod = procod ? String(procod).trim() : null;
+  if (!targetProcod) {
+    try {
+      const resOt = await dbEsolver.query(
+        `SELECT RTRIM(procod) AS procod FROM VIEW_PRD_TALLER_OT WHERE otcod = @otcod`,
+        { otcod: otcod.trim() }
+      );
+      if (resOt.recordset.length > 0) {
+        targetProcod = resOt.recordset[0].procod;
+      }
+    } catch (err) {
+      console.warn('Error buscando procod en eSolver:', err.message);
+    }
+  }
+
+  let totalConfigurada = 0;
+  if (targetProcod) {
+    req.input('procod', db.sql.Char(30), targetProcod);
+    const resConfig = await req.query(`
+      SELECT cantidad 
+      FROM FTALLER.dbo.PAR_UBICACION_PRODUCTO
+      WHERE empcod = '01' AND RTRIM(procod) = RTRIM(@procod) AND ubicod = @ubicod
+    `);
+    if (resConfig.recordset.length > 0 && resConfig.recordset[0].cantidad !== null) {
+      totalConfigurada = Number(resConfig.recordset[0].cantidad);
+    }
+  }
+
+  const resReg = await req.query(`
+    SELECT ISNULL(SUM(cantidad), 0) AS cantidadRegistrada
+    FROM FTALLER.dbo.TAL_CONTROL_PRODUCCION
+    WHERE otcod = @otcod AND ubicod = @ubicod AND codusuanu IS NULL
+  `);
+  const cantidadRegistrada = Number(resReg.recordset[0].cantidadRegistrada || 0);
+  const saldoPendiente = totalConfigurada > 0 ? Math.max(0, totalConfigurada - cantidadRegistrada) : 0;
+
+  return {
+    totalConfigurada,
+    cantidadRegistrada,
+    saldoPendiente
+  };
+}
+
+/**
+ * Updates a production control record: updates header and replaces worker details.
+ */
+async function actualizarRegistroProduccion(cpcod, updateData, userContext) {
+  const pool = await db.connect();
+  const transaction = new db.sql.Transaction(pool);
+  await transaction.begin();
+
+  try {
+    const actorUsucod = typeof userContext === 'object' ? userContext.usucod : (userContext || 'ADMIN');
+    const empcod = typeof userContext === 'object' ? (userContext.empcod || '01') : '01';
+
+    // 1. Obtener registro actual de cabecera
+    const reqHeader = new db.sql.Request(transaction);
+    reqHeader.input('cpcod', db.sql.Char(10), String(cpcod).trim());
+    reqHeader.input('empcod', db.sql.Char(2), String(empcod).trim());
+    const resCur = await reqHeader.query(`
+      SELECT empcod, cpcod, tiptra, tarifa, cantidad, valor_unitario
+      FROM TAL_CONTROL_PRODUCCION
+      WHERE empcod = @empcod AND cpcod = @cpcod
+    `);
+    if (resCur.recordset.length === 0) {
+      throw new Error(`Registro de producción #${cpcod} no encontrado.`);
+    }
+    const currentCp = resCur.recordset[0];
+    const tiptra = String(currentCp.tiptra).trim();
+    const tarifa = Number(currentCp.tarifa || 0);
+
+    const workers = updateData.workers || [];
+    if (!Array.isArray(workers) || workers.length === 0) {
+      throw new Error('Debe asignarse al menos un operario en el registro.');
+    }
+
+    // Calcular nueva cantidad total de cabecera
+    let finalCantidad = 0;
+    if (tiptra === 'J') {
+      finalCantidad = workers.reduce((sum, w) => sum + Number(w.cantidad || 0), 0);
+    } else {
+      const costuras = new Set(workers.map(w => Number(w.cantidad || w.costuraNum || 1)));
+      finalCantidad = costuras.size;
+    }
+    if (updateData.cantidad !== undefined && Number(updateData.cantidad) > 0) {
+      finalCantidad = Number(updateData.cantidad);
+    }
+
+    let finalVu = updateData.valor_unitario !== undefined ? Number(updateData.valor_unitario) : Number(currentCp.valor_unitario || 0);
+    if (tiptra === 'J' && workers.length > 0 && workers[0].valor_unitario !== undefined) {
+      finalVu = Number(workers[0].valor_unitario || 0);
+    }
+
+    // 2. Actualizar cabecera TAL_CONTROL_PRODUCCION
+    const reqUpdCab = new db.sql.Request(transaction);
+    reqUpdCab.input('cpcod', db.sql.Char(10), String(cpcod).trim());
+    reqUpdCab.input('empcod', db.sql.Char(2), String(empcod).trim());
+    reqUpdCab.input('cantidad', db.sql.Decimal(18, 4), finalCantidad);
+    reqUpdCab.input('valor_unitario', db.sql.Decimal(18, 4), finalVu);
+    reqUpdCab.input('usucod', db.sql.VarChar(20), String(actorUsucod).trim());
+
+    await reqUpdCab.query(`
+      UPDATE TAL_CONTROL_PRODUCCION
+      SET cantidad = @cantidad,
+          valor_unitario = @valor_unitario,
+          codusumod = @usucod,
+          fecusumod = GETDATE()
+      WHERE empcod = @empcod AND cpcod = @cpcod
+    `);
+
+    // 3. Eliminar detalles anteriores
+    const reqDelDet = new db.sql.Request(transaction);
+    reqDelDet.input('cpcod', db.sql.Char(10), String(cpcod).trim());
+    reqDelDet.input('empcod', db.sql.Char(2), String(empcod).trim());
+    await reqDelDet.query(`
+      DELETE FROM TAL_CONTROL_PRODUCCION_DETALLE
+      WHERE empcod = @empcod AND cpcod = @cpcod
+    `);
+
+    // 4. Insertar nuevos detalles con cpnum secuencial
+    for (let i = 0; i < workers.length; i++) {
+      const w = workers[i];
+      const cpnum = i + 1;
+      const tracod = String(w.tracod || w.usucod || '').trim();
+      const cantDet = Number(w.cantidad || 0);
+      const vuDet = Number(w.valor_unitario !== undefined ? w.valor_unitario : (w.vu || 0));
+      const tarDet = w.tarifa !== undefined ? Number(w.tarifa) : tarifa;
+
+      const reqInsDet = new db.sql.Request(transaction);
+      reqInsDet.input('cpcod', db.sql.Char(10), String(cpcod).trim());
+      reqInsDet.input('empcod', db.sql.Char(2), String(empcod).trim());
+      reqInsDet.input('cpnum', db.sql.Int, cpnum);
+      reqInsDet.input('tracod', db.sql.Char(15), tracod);
+      reqInsDet.input('cantidad', db.sql.Decimal(18, 4), cantDet);
+      reqInsDet.input('valor_unitario', db.sql.Decimal(18, 4), vuDet);
+      reqInsDet.input('tarifa', db.sql.Decimal(18, 4), tarDet);
+
+      await reqInsDet.query(`
+        INSERT INTO TAL_CONTROL_PRODUCCION_DETALLE (empcod, cpcod, cpnum, tracod, cantidad, valor_unitario, tarifa)
+        VALUES (@empcod, @cpcod, @cpnum, @tracod, @cantidad, @valor_unitario, @tarifa)
+      `);
+    }
+
+    await transaction.commit();
+    return { success: true, cpcod, cantidad: finalCantidad };
+  } catch (err) {
+    await transaction.rollback();
+    throw err;
+  }
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
   obtenerLotesOt,
   obtenerLotesProducidosDeOt,
   obtenerAvanceCosturasLotes,
+  obtenerSaldoPendienteJornal,
+  actualizarRegistroProduccion,
   listarUbicaciones,
   obtenerConfigUbicacionProducto,
   listarOperarios,
