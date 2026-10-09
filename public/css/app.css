@@ -226,6 +226,19 @@ input[type=number] {
   border-left: 1px dashed #e9edf5;
 }
 
+/* Columna de Acciones sin truncado */
+.table--grid th.col-actions,
+.table--grid td.col-actions,
+#tableProduccionHeaders th:last-child,
+#tableProduccionHeaders td:last-child {
+  width: 280px !important;
+  min-width: 280px !important;
+  max-width: none !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+}
+
 /* Anchos / alineación por columna */
 .table--grid th:nth-child(1), .table--grid td:nth-child(1){ width: 160px; text-align: left; }
 .table--grid th:nth-child(n+2), .table--grid td:nth-child(n+2){ text-align: center; }

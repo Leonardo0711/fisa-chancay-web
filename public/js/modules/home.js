@@ -219,20 +219,26 @@
         <td style="padding: 10px; font-size: 0.8rem; color: var(--muted); font-weight: 600;">
           ${h.codusucre || '---'}
         </td>
-        <td style="padding: 10px; text-align: center; white-space: nowrap;">
-          <button type="button" class="btn btn-soft btn-open-detail" style="padding: 4px 10px; font-size: 0.78rem; font-weight: 700;" data-cpcod="${h.cpcod}">
-            Ver Detalle
-          </button>
-          <button type="button" class="btn btn-warning btn-edit-record" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 700; margin-left: 6px; display: inline-flex; align-items: center; gap: 4px;" data-cpcod="${h.cpcod}" title="Editar registro">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-            </svg>
-            Editar
-          </button>
-          <button type="button" class="btn btn-danger btn-delete-record" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 700; margin-left: 6px;" data-cpcod="${h.cpcod}" title="Eliminar registro">
-            Eliminar
-          </button>
+        <td class="col-actions" style="padding: 8px 10px; text-align: center; white-space: nowrap; width: 280px; min-width: 280px; max-width: none !important; overflow: visible !important;">
+          <div style="display: inline-flex; align-items: center; justify-content: center; gap: 5px;">
+            <button type="button" class="btn btn-soft btn-open-detail" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 700; white-space: nowrap;" data-cpcod="${h.cpcod}">
+              Ver Detalle
+            </button>
+            <button type="button" class="btn btn-warning btn-edit-record" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" data-cpcod="${h.cpcod}" title="Editar registro">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+              Editar
+            </button>
+            <button type="button" class="btn btn-danger btn-delete-record" style="padding: 4px 8px; font-size: 0.78rem; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;" data-cpcod="${h.cpcod}" title="Eliminar registro">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+              </svg>
+              Eliminar
+            </button>
+          </div>
         </td>
       `;
 
