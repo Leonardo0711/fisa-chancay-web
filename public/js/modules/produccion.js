@@ -581,8 +581,8 @@
       badgVu.textContent = uVu;
 
       document.getElementById('vuFieldGroup').style.display = 'block';
-      document.getElementById('loteFieldGroup').style.display = 'none'; // oculto para Jornal
-      selectLote.required = false;
+      document.getElementById('loteFieldGroup').style.display = 'block';
+      selectLote.required = true;
 
       // Consultar saldo pendiente acumulado en FTALLER para esta OT y ubicación de Jornal
       if (activeOt) {
