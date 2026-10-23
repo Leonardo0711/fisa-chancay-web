@@ -114,10 +114,11 @@
           ? parseInt(config.cantidad, 10) : 0;
         if (totalConfig > 0) {
           const prevCosturas = getSelectedLotPrevCosturas();
+          const inc = getSelectedLotIncompleteCostura();
           const remaining = Math.max(totalConfig - prevCosturas, 0);
           const val = parseInt(inputCantidadIngresar.value || 0, 10);
 
-          if (prevCosturas >= totalConfig) {
+          if (prevCosturas >= totalConfig && !inc) {
             showAlert(`ATENCIÓN: ESTE LOTE YA COMPLETÓ TODAS LAS COSTURAS CONFIGURADAS (${prevCosturas}/${totalConfig})`, 'error');
             badgCant.textContent = `Completado (${prevCosturas}/${totalConfig})`;
             badgCant.style.color = '#dc2626';
@@ -131,6 +132,12 @@
             badgCant.style.fontWeight = '800';
             if (btnAccept) btnAccept.disabled = true;
             return;
+          } else if (inc) {
+            hideAlert();
+            badgCant.textContent = `Costura #${inc.costuraNum} (Pend: ${inc.vuPendiente}/${inc.targetVu}) | ${prevCosturas}/${totalConfig} compl.`;
+            badgCant.style.color = '#d97706';
+            badgCant.style.fontWeight = '800';
+            if (btnAccept) btnAccept.disabled = false;
           } else if (val <= 0) {
             badgCant.textContent = `Pend: ${remaining}/${totalConfig}`;
             badgCant.style.color = '';
@@ -302,6 +309,29 @@
     return 0;
   }
 
+  function getSelectedLotIncompleteCostura() {
+    const lotVal = selectLote ? String(selectLote.value || '').trim() : '';
+    if (lotVal && Array.isArray(currentLotesData)) {
+      const match = currentLotesData.find(l => String(l.lotcod || '').trim() === lotVal);
+      if (match && match.costuraIncompleta) {
+        return match.costuraIncompleta;
+      }
+    }
+    if (selectLote && lotVal) {
+      const opt = selectLote.querySelector(`option[value="${lotVal}"]`);
+      if (opt && opt.dataset && opt.dataset.incompleteCostura) {
+        try { return JSON.parse(opt.dataset.incompleteCostura); } catch (_) {}
+      }
+    }
+    if (selectLote && selectLote.selectedIndex >= 0) {
+      const opt = selectLote.options[selectLote.selectedIndex];
+      if (opt && opt.dataset && opt.dataset.incompleteCostura) {
+        try { return JSON.parse(opt.dataset.incompleteCostura); } catch (_) {}
+      }
+    }
+    return null;
+  }
+
   async function loadLotes(otcod, ubicod) {
     try {
       const targetUbicod = ubicod || (selectUbicacion ? selectUbicacion.value : null);
@@ -329,6 +359,8 @@
           opt.textContent = `${l.lotcod} - ${displayFraction}`;
           opt.dataset.avance = displayFraction;
           opt.dataset.prevCosturas = String(l.costurasRegistradas || 0);
+          opt.dataset.incompleteCostura = l.costuraIncompleta ? JSON.stringify(l.costuraIncompleta) : '';
+          opt.dataset.nextCostura = String(l.nextCostura || 1);
           selectLote.appendChild(opt);
         });
       } else {
@@ -362,6 +394,7 @@
       lblLoteProgress.textContent = selectedOpt.dataset.avance || '---';
 
       const prevCosturas = getSelectedLotPrevCosturas();
+      const inc = getSelectedLotIncompleteCostura();
       const config = getCurrentLocationConfig();
       const isJornal = (radioJornal && radioJornal.checked) || (config && config.tiptra === 'J');
 
@@ -369,17 +402,25 @@
         const totalConfig = parseInt(config.cantidad, 10) || 0;
         if (totalConfig > 0) {
           const remaining = Math.max(totalConfig - prevCosturas, 0);
-          inputCantidadIngresar.value = remaining;
-          inputCantidadIngresar.dataset.autoFilled = '1';
 
-          if (remaining === 0) {
+          if (remaining === 0 && !inc) {
             showAlert(`ATENCIÓN: EL LOTE SELECCIONADO YA TIENE COMPLETADAS TODAS LAS COSTURAS (${prevCosturas}/${totalConfig})`, 'error');
             badgCant.textContent = `Completado (${prevCosturas}/${totalConfig})`;
             badgCant.style.color = '#dc2626';
             badgCant.style.fontWeight = '800';
             if (btnAccept) btnAccept.disabled = true;
+          } else if (inc) {
+            hideAlert();
+            inputCantidadIngresar.value = 1;
+            inputCantidadIngresar.dataset.autoFilled = '1';
+            badgCant.textContent = `Costura #${inc.costuraNum} (Pend: ${inc.vuPendiente}/${inc.targetVu}) | ${prevCosturas}/${totalConfig} compl.`;
+            badgCant.style.color = '#d97706';
+            badgCant.style.fontWeight = '800';
+            if (btnAccept) btnAccept.disabled = false;
           } else {
             hideAlert();
+            inputCantidadIngresar.value = remaining;
+            inputCantidadIngresar.dataset.autoFilled = '1';
             badgCant.textContent = `Pend: ${remaining}/${totalConfig}`;
             badgCant.style.color = '';
             badgCant.style.fontWeight = '';
@@ -916,13 +957,14 @@
 
     // --- MODO DESTAJO ---
     const prevCosturas = getSelectedLotPrevCosturas();
-    const startCostura = prevCosturas + 1;
+    const inc = getSelectedLotIncompleteCostura();
+    const startCostura = inc ? inc.costuraNum : (prevCosturas + 1);
     const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
     const totalConfig = (config && config.cantidad !== null && typeof config.cantidad !== 'undefined')
       ? parseInt(config.cantidad, 10) : 0;
     const limitCostura = totalConfig > 0 ? totalConfig : 9999;
 
-    if (totalConfig > 0 && startCostura > limitCostura) {
+    if (totalConfig > 0 && startCostura > limitCostura && !inc) {
       showAlert(`NO SE PUEDE ASIGNAR: Este lote ya completó el límite de ${totalConfig} costura(s) configurada(s).`, 'error');
       closeOperarioModal();
       return;
@@ -1132,7 +1174,8 @@
     operariosTbody.innerHTML = '';
 
     const prevCosturas = getSelectedLotPrevCosturas();
-    const startCostura = prevCosturas + 1;
+    const inc = getSelectedLotIncompleteCostura();
+    const startCostura = inc ? inc.costuraNum : (prevCosturas + 1);
     const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
 
     if (selectedOperarios.size === 0 && cantCosturas === 0) {
@@ -1265,6 +1308,16 @@
         const vuInput = tr.querySelector('.op-vu-input');
         vuInput.addEventListener('input', (e) => {
           op.vu = parseFloat(e.target.value || 0);
+          const inc = getSelectedLotIncompleteCostura();
+          const c = op.costuraNum || 1;
+          const maxVuPermitido = (inc && inc.costuraNum === c) ? inc.vuPendiente : (config && config.valorUnitario ? Number(config.valorUnitario) : null);
+          if (maxVuPermitido && op.vu > (maxVuPermitido + 0.01)) {
+            showAlert(`EL VU INGRESADO (${op.vu}) EXCEDE EL MÁXIMO PERMITIDO PARA LA COSTURA #${c} (${maxVuPermitido})`, 'error');
+            if (btnAccept) btnAccept.disabled = true;
+          } else {
+            hideAlert();
+            if (btnAccept) btnAccept.disabled = false;
+          }
           saveFormDraft();
         });
 
@@ -1512,11 +1565,18 @@
     });
 
     // Dividir el VU de la costura equitativamente entre sus operarios
+    const inc = getSelectedLotIncompleteCostura();
     selectedOperarios.forEach(op => {
       const c = op.costuraNum || 1;
       const count = costuraCounts[c] || 1;
       op.cantidad = 1;
-      op.vu = vuPorCostura > 0 ? (vuPorCostura / count) : 0;
+
+      let targetVuCostura = vuPorCostura;
+      if (inc && inc.costuraNum === c && inc.vuPendiente > 0) {
+        targetVuCostura = inc.vuPendiente;
+      }
+
+      op.vu = targetVuCostura > 0 ? parseFloat((targetVuCostura / count).toFixed(2)) : 0;
     });
 
     updateVuFieldsInTable();
@@ -1608,13 +1668,24 @@
     } else {
       // --- MODO DESTAJO ---
       const prevCosturas = getSelectedLotPrevCosturas();
-      const startCostura = prevCosturas + 1;
+      const inc = getSelectedLotIncompleteCostura();
+      const startCostura = inc ? inc.costuraNum : (prevCosturas + 1);
       const totalConfig = (config && config.cantidad !== null && typeof config.cantidad !== 'undefined')
         ? parseInt(config.cantidad, 10) : 0;
 
-      if (totalConfig > 0 && prevCosturas >= totalConfig) {
+      if (totalConfig > 0 && prevCosturas >= totalConfig && !inc) {
         showAlert(`NO SE PUEDE REGISTRAR: El lote seleccionado ya tiene las ${totalConfig} costura(s) completadas para esta ubicación.`, 'error');
         return;
+      }
+
+      if (inc) {
+        const sumVuForInc = Array.from(selectedOperarios.values())
+          .filter(op => op.costuraNum === inc.costuraNum)
+          .reduce((sum, op) => sum + (parseFloat(op.vu) || 0), 0);
+        if (sumVuForInc > (inc.vuPendiente + 0.01)) {
+          showAlert(`NO SE PUEDE REGISTRAR: El VU asignado a la costura #${inc.costuraNum} (${sumVuForInc.toFixed(2)}) excede el saldo pendiente (${inc.vuPendiente} restante de ${inc.targetVu}).`, 'error');
+          return;
+        }
       }
 
       // Obtener las costuras cubiertas por los operarios asignados

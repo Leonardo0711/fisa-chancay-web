@@ -111,9 +111,10 @@ async function obtenerLotesProducidosDeOt(otcod, ubicod) {
 }
 
 /**
- * Gets the highest costura number / total costuras already recorded for each lot in a specific OT and location.
+ * Gets progress of registered costuras per lot for a given OT and location in Destajo.
+ * Calculates completed vs incomplete costuras based on accumulated valor_unitario per costura number.
  */
-async function obtenerAvanceCosturasLotes(otcod, ubicod) {
+async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
   if (!otcod || !ubicod) return {};
   const pool = await db.connect();
   const req = pool.request();
@@ -123,34 +124,83 @@ async function obtenerAvanceCosturasLotes(otcod, ubicod) {
   const query = `
     SELECT 
       RTRIM(cp.lotcod) AS lotcod,
-      CAST(ISNULL((
-        SELECT MAX(d.cantidad) 
-        FROM TAL_CONTROL_PRODUCCION_DETALLE d WITH(NOLOCK)
-        JOIN TAL_CONTROL_PRODUCCION cp2 WITH(NOLOCK) ON cp2.empcod = d.empcod AND cp2.cpcod = d.cpcod
-        WHERE cp2.otcod = cp.otcod AND cp2.ubicod = cp.ubicod AND RTRIM(cp2.lotcod) = RTRIM(cp.lotcod)
-      ), 0) AS INT) AS maxDetCostura,
-      (
-        SELECT COUNT(d2.cpnum)
-        FROM TAL_CONTROL_PRODUCCION_DETALLE d2 WITH(NOLOCK)
-        JOIN TAL_CONTROL_PRODUCCION cp3 WITH(NOLOCK) ON cp3.empcod = d2.empcod AND cp3.cpcod = d2.cpcod
-        WHERE cp3.otcod = cp.otcod AND cp3.ubicod = cp.ubicod AND RTRIM(cp3.lotcod) = RTRIM(cp.lotcod)
-      ) AS countDetalles
+      ISNULL(d.cantidad, 0) AS costuraNum,
+      CAST(ISNULL(SUM(d.valor_unitario), 0) AS DECIMAL(10, 2)) AS totalVu
     FROM TAL_CONTROL_PRODUCCION cp WITH(NOLOCK)
+    LEFT JOIN TAL_CONTROL_PRODUCCION_DETALLE d WITH(NOLOCK) 
+      ON cp.empcod = d.empcod AND cp.cpcod = d.cpcod
     WHERE cp.otcod = @otcod 
       AND cp.ubicod = @ubicod 
       AND cp.lotcod IS NOT NULL 
       AND RTRIM(cp.lotcod) <> ''
-    GROUP BY cp.otcod, cp.ubicod, cp.lotcod
+      AND cp.codusuanu IS NULL
+    GROUP BY cp.lotcod, d.cantidad
+    ORDER BY cp.lotcod, d.cantidad
   `;
 
   const res = await req.query(query);
-  const map = {};
+  const byLot = {};
   res.recordset.forEach(r => {
     const key = String(r.lotcod || '').trim();
-    if (key) {
-      map[key] = (r.maxDetCostura && r.maxDetCostura > 0) ? r.maxDetCostura : (r.countDetalles || 0);
+    if (!key) return;
+    if (!byLot[key]) byLot[key] = [];
+    if (r.costuraNum > 0) {
+      byLot[key].push({
+        costuraNum: parseInt(r.costuraNum, 10),
+        totalVu: parseFloat(r.totalVu || 0)
+      });
     }
   });
+
+  const target = (targetVu !== null && targetVu !== undefined && Number(targetVu) > 0) ? Number(targetVu) : null;
+  const map = {};
+
+  Object.keys(byLot).forEach(key => {
+    const costuras = byLot[key];
+    costuras.sort((a, b) => a.costuraNum - b.costuraNum);
+
+    let costurasCompletas = 0;
+    let costuraIncompleta = null;
+    const costurasDetalle = {};
+
+    costuras.forEach(c => {
+      costurasDetalle[c.costuraNum] = c.totalVu;
+      if (target !== null) {
+        if (c.totalVu >= (target - 0.01)) {
+          costurasCompletas++;
+        } else if (c.totalVu > 0 && !costuraIncompleta) {
+          costuraIncompleta = {
+            costuraNum: c.costuraNum,
+            vuRegistrado: c.totalVu,
+            vuPendiente: parseFloat(Math.max(0, target - c.totalVu).toFixed(2)),
+            targetVu: target
+          };
+        }
+      } else {
+        costurasCompletas = Math.max(costurasCompletas, c.costuraNum);
+      }
+    });
+
+    let nextCostura;
+    if (costuraIncompleta) {
+      nextCostura = costuraIncompleta.costuraNum;
+    } else if (costuras.length > 0) {
+      const maxC = Math.max(...costuras.map(c => c.costuraNum));
+      nextCostura = maxC + 1;
+    } else {
+      nextCostura = 1;
+    }
+
+    map[key] = {
+      costurasRegistradas: costurasCompletas,
+      costuraIncompleta,
+      nextCostura,
+      detalles: costurasDetalle,
+      valueOf() { return this.costurasRegistradas; },
+      toString() { return String(this.costurasRegistradas); }
+    };
+  });
+
   return map;
 }
 

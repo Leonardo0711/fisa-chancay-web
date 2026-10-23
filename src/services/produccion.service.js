@@ -110,7 +110,15 @@ async function obtenerLotesOt(otcod, ubicod) {
   // 6. Consultar avance de costuras ya registradas por lote para esta ubicación
   let costurasMap = {};
   if (ubicod && String(ubicod).trim()) {
-    costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod).catch(() => ({}));
+    let targetVu = null;
+    if (otDetails && otDetails.procod) {
+      const configMap = await obtenerConfigUbicacionProducto(otDetails.procod).catch(() => ({}));
+      const ubiConfig = configMap[String(ubicod).trim()];
+      if (ubiConfig && ubiConfig.valorUnitario !== null && ubiConfig.valorUnitario !== undefined) {
+        targetVu = Number(ubiConfig.valorUnitario);
+      }
+    }
+    costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod, targetVu).catch(() => ({}));
   }
 
   // 7. Retornar TODOS los lotes de la OT (sin excluir los ya registrados), cada uno con su posición y costuras previas
@@ -125,12 +133,17 @@ async function obtenerLotesOt(otcod, ubicod) {
     } else {
       lotNumber = idx + 1;
     }
+    const info = costurasMap[lot] || { costurasRegistradas: 0, costuraIncompleta: null, nextCostura: 1 };
+    const costurasReg = typeof info === 'object' && info.costurasRegistradas !== undefined ? info.costurasRegistradas : (parseInt(info, 10) || 0);
+
     return {
       lotcod: lot,
       num: lotNumber,
       total: totalLotes,
       avance: `${lotNumber}/${totalLotes}`,
-      costurasRegistradas: costurasMap[lot] || 0
+      costurasRegistradas: costurasReg,
+      costuraIncompleta: info.costuraIncompleta || null,
+      nextCostura: info.nextCostura || (costurasReg + 1)
     };
   });
 }
@@ -255,13 +268,17 @@ async function registrarProduccion(data, userContext) {
         const totalCosturasConfig = parseInt(ubiConfig.cantidad, 10) || 0;
         if (totalCosturasConfig > 0) {
           let prevCosturas = 0;
+          let lotInfo = null;
+          const targetVu = (ubiConfig && ubiConfig.valorUnitario !== null && ubiConfig.valorUnitario !== undefined) ? Number(ubiConfig.valorUnitario) : null;
           if (finalLotcod) {
-            const costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod).catch(() => ({}));
-            prevCosturas = costurasMap[finalLotcod] || 0;
+            const costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod, targetVu).catch(() => ({}));
+            lotInfo = costurasMap[finalLotcod] || null;
+            prevCosturas = lotInfo ? (lotInfo.costurasRegistradas || 0) : 0;
           }
+          const hasIncomplete = lotInfo && lotInfo.costuraIncompleta;
           const remaining = Math.max(totalCosturasConfig - prevCosturas, 0);
 
-          if (finalLotcod && prevCosturas >= totalCosturasConfig) {
+          if (finalLotcod && prevCosturas >= totalCosturasConfig && !hasIncomplete) {
             throw new Error(`NO SE PUEDE REGISTRAR: El lote ${finalLotcod} ya tiene todas las costuras completadas (${prevCosturas}/${totalCosturasConfig}).`);
           }
 
@@ -275,6 +292,27 @@ async function registrarProduccion(data, userContext) {
 
             if (finalLotcod && coveredCosturas.size > remaining) {
               throw new Error(`NO SE PUEDE REGISTRAR: La cantidad de costuras a ingresar (${coveredCosturas.size}) excede las ${remaining} costura(s) disponible(s) para este lote (total configurado: ${totalCosturasConfig}).`);
+            }
+
+            // Validación de VU por costura (no permitir exceder targetVu por costura)
+            if (targetVu && targetVu > 0 && lotInfo && lotInfo.detalles) {
+              const vuPorCosturaIntento = {};
+              workers.forEach(w => {
+                const c = parseInt(w.costuraNum || w.cantidad || 1, 10);
+                const val = parseFloat(w.vu !== undefined ? w.vu : (w.valor_unitario || 0)) || 0;
+                vuPorCosturaIntento[c] = (vuPorCosturaIntento[c] || 0) + val;
+              });
+
+              Object.keys(vuPorCosturaIntento).forEach(cStr => {
+                const c = parseInt(cStr, 10);
+                const intentoVal = vuPorCosturaIntento[c];
+                const prevVal = parseFloat(lotInfo.detalles[c] || 0);
+                const totalPost = intentoVal + prevVal;
+                if (totalPost > (targetVu + 0.01)) {
+                  const saldoMax = parseFloat(Math.max(0, targetVu - prevVal).toFixed(2));
+                  throw new Error(`NO SE PUEDE REGISTRAR: La costura #${c} excede el límite configurado de ${targetVu}. Ya tiene ${prevVal.toFixed(2)} registrado(s) y se intenta ingresar ${intentoVal.toFixed(2)} (saldo restante permitido: ${saldoMax}).`);
+                }
+              });
             }
           }
         }
