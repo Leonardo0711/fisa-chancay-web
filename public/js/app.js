@@ -76,6 +76,13 @@
           window.location.href = getAbsoluteUrl(res.redirect || '/home');
         }, 800);
       } catch (err) {
+        if (err.message && err.message.toLowerCase().includes('csrf')) {
+          StatusBar.showMessage('Sesión renovada por actualización del servidor. Recargando...', 'warning');
+          setTimeout(() => {
+            window.location.reload();
+          }, 900);
+          return;
+        }
         StatusBar.showMessage(err.message, 'error');
         refreshCaptcha();
         const captchaInput = document.getElementById('captcha');
