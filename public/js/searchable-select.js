@@ -276,13 +276,17 @@
       // Calcular orientación (arriba/abajo) y altura disponible
       this.updatePosition();
 
-      // Al abrir, filtrar según lo que haya o mostrar todo
-      this.renderOptionsList(this.input.value);
+      // Al abrir, mostrar la lista completa para poder elegir cualquier opción
+      this.renderOptionsList('');
 
       // Auto-seleccionar todo el texto para poder escribir encima inmediatamente
       setTimeout(() => {
         this.input.select();
         this.updatePosition();
+        const selectedEl = this.optionsList.querySelector('.custom-select-option.is-selected');
+        if (selectedEl) {
+          selectedEl.scrollIntoView({ block: 'nearest' });
+        }
       }, 10);
     }
 
