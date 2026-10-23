@@ -568,7 +568,7 @@ async function eliminarRegistroProduccion(cpcod, empcod = '01') {
 /**
  * Gets configured quantity, registered quantity, and pending balance for a Jornal location in an OT.
  */
-async function obtenerSaldoPendienteJornal(otcod, ubicod, procod) {
+async function obtenerSaldoPendienteJornal(otcod, ubicod, procod, lotcod = null) {
   if (!otcod || !ubicod) {
     return { totalConfigurada: 0, cantidadRegistrada: 0, saldoPendiente: 0 };
   }
@@ -605,11 +605,17 @@ async function obtenerSaldoPendienteJornal(otcod, ubicod, procod) {
     }
   }
 
-  const resReg = await req.query(`
+  let queryReg = `
     SELECT ISNULL(SUM(cantidad), 0) AS cantidadRegistrada
     FROM FTALLER.dbo.TAL_CONTROL_PRODUCCION
     WHERE otcod = @otcod AND ubicod = @ubicod AND codusuanu IS NULL
-  `);
+  `;
+  if (lotcod && String(lotcod).trim()) {
+    queryReg += ` AND RTRIM(lotcod) = @lotcod`;
+    req.input('lotcod', db.sql.Char(50), String(lotcod).trim());
+  }
+
+  const resReg = await req.query(queryReg);
   const cantidadRegistrada = Number(resReg.recordset[0].cantidadRegistrada || 0);
   const saldoPendiente = totalConfigurada > 0 ? Math.max(0, totalConfigurada - cantidadRegistrada) : 0;
 

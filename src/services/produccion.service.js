@@ -229,14 +229,14 @@ async function registrarProduccion(data, userContext) {
   const actorUsucod = typeof userContext === 'object' ? userContext.usucod : (userContext || 'ADMIN');
   const actorEmpcod = typeof userContext === 'object' ? (userContext.empcod || empcod || '01') : (empcod || '01');
 
-  // Validación de saldo para Jornal: no permitir que finalCantidad exceda el saldo pendiente
+  // Validación de saldo para Jornal: no permitir que finalCantidad exceda el saldo pendiente del lote
   if (finalTiptra === 'J' && otcod && ubicod) {
     const procodParam = (data.procod || '').trim();
-    const saldoInfo = await produccionDal.obtenerSaldoPendienteJornal(otcod, ubicod, procodParam).catch(() => null);
+    const saldoInfo = await produccionDal.obtenerSaldoPendienteJornal(otcod, ubicod, procodParam, finalLotcod).catch(() => null);
     if (saldoInfo && saldoInfo.totalConfigurada > 0) {
       const saldoMax = saldoInfo.saldoPendiente;
       if (finalCantidad > saldoMax) {
-        throw new Error(`NO SE PUEDE REGISTRAR: La cantidad ingresada (${finalCantidad}) excede el saldo pendiente permitido (${saldoMax} de ${saldoInfo.totalConfigurada}).`);
+        throw new Error(`NO SE PUEDE REGISTRAR: La cantidad ingresada (${finalCantidad}) excede el saldo pendiente permitido para el lote ${finalLotcod || ''} (${saldoMax} de ${saldoInfo.totalConfigurada}).`);
       }
     }
   }
@@ -399,8 +399,8 @@ async function eliminarRegistroProduccion(cpcod, userContext) {
   return produccionDal.eliminarRegistroProduccion(cpcod, empcod);
 }
 
-async function obtenerSaldoPendienteJornal(otcod, ubicod, procod) {
-  return produccionDal.obtenerSaldoPendienteJornal(otcod, ubicod, procod);
+async function obtenerSaldoPendienteJornal(otcod, ubicod, procod, lotcod = null) {
+  return produccionDal.obtenerSaldoPendienteJornal(otcod, ubicod, procod, lotcod);
 }
 
 async function actualizarRegistroProduccion(cpcod, updateData, userContext) {

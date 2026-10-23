@@ -152,8 +152,8 @@ async function apiEliminarRegistroProduccion(req, res, next) {
 async function apiObtenerSaldoJornal(req, res, next) {
   try {
     const { otcod } = req.params;
-    const { ubicod, procod } = req.query;
-    const data = await produccionService.obtenerSaldoPendienteJornal(otcod, ubicod, procod);
+    const { ubicod, procod, lotcod } = req.query;
+    const data = await produccionService.obtenerSaldoPendienteJornal(otcod, ubicod, procod, lotcod);
     return res.json(data);
   } catch (err) {
     next(err);

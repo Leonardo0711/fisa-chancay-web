@@ -386,6 +386,60 @@
             if (btnAccept) btnAccept.disabled = false;
           }
         }
+      } else if (isJornal) {
+        // --- MODO JORNAL: Saldo independiente por cada lote ---
+        const targetLot = selectedOpt.value;
+        const ubicod = selectUbicacion ? selectUbicacion.value : null;
+        if (activeOt && ubicod && targetLot) {
+          window.AppFetch(`/api/produccion/ots/${encodeURIComponent(activeOt)}/saldo-jornal?ubicod=${encodeURIComponent(ubicod)}&procod=${encodeURIComponent(activeProduct || '')}&lotcod=${encodeURIComponent(targetLot)}`)
+            .then(saldoData => {
+              const totalConfig = Number(saldoData.totalConfigurada || (config ? config.cantidad : 0) || 0);
+              const reg = Number(saldoData.cantidadRegistrada || 0);
+              const saldo = saldoData.saldoPendiente > 0 ? saldoData.saldoPendiente : (totalConfig > 0 ? Math.max(0, totalConfig - reg) : 0);
+
+              currentJornalTotal = totalConfig;
+              currentJornalSaldo = saldo;
+
+              if (totalConfig > 0 && reg >= totalConfig) {
+                showAlert(`ATENCIÓN: EL LOTE SELECCIONADO YA TIENE COMPLETADA TODA LA PRODUCCIÓN (${reg}/${totalConfig})`, 'error');
+                inputCantidadIngresar.value = 0;
+                badgCant.textContent = `Completado (${reg}/${totalConfig})`;
+                badgCant.style.color = '#dc2626';
+                badgCant.style.fontWeight = '800';
+                if (btnAccept) btnAccept.disabled = true;
+              } else if (saldo > 0) {
+                hideAlert();
+                inputCantidadIngresar.value = saldo;
+                badgCant.textContent = `Pend: ${saldo}/${totalConfig}`;
+                badgCant.style.color = '';
+                badgCant.style.fontWeight = '';
+                lblValores.value = `${totalConfig} (Pend: ${saldo}) / ${config && config.valorUnitario !== null && config.valorUnitario !== undefined ? Number(config.valorUnitario).toFixed(2) : '---'}`;
+                if (btnAccept) btnAccept.disabled = false;
+              } else if (totalConfig > 0) {
+                hideAlert();
+                inputCantidadIngresar.value = totalConfig;
+                badgCant.textContent = `${totalConfig} ${config && config.unidadCant ? config.unidadCant : ''}`;
+                badgCant.style.color = '';
+                badgCant.style.fontWeight = '';
+                if (btnAccept) btnAccept.disabled = false;
+              }
+
+              // Si ya hay operarios seleccionados en Jornal, repartir el saldo del lote entre ellos
+              const val = parseFloat(inputCantidadIngresar.value || 0);
+              if (selectedOperarios.size > 0 && !isNaN(val) && val >= 0) {
+                const perOp = parseFloat((val / selectedOperarios.size).toFixed(2));
+                selectedOperarios.forEach(op => {
+                  op.vu = perOp;
+                  op.cantidad = 1;
+                });
+                renderSelectedOperarios();
+              }
+              saveFormDraft();
+            })
+            .catch(err => {
+              console.warn('Error obteniendo saldo Jornal por lote:', err.message);
+            });
+        }
       }
     } else {
       lblLoteProgress.textContent = '---';
@@ -584,33 +638,7 @@
       document.getElementById('loteFieldGroup').style.display = 'block';
       selectLote.required = true;
 
-      // Consultar saldo pendiente acumulado en FTALLER para esta OT y ubicación de Jornal
-      if (activeOt) {
-        window.AppFetch(`/api/produccion/ots/${encodeURIComponent(activeOt)}/saldo-jornal?ubicod=${encodeURIComponent(ubicod)}&procod=${encodeURIComponent(activeProduct || '')}`)
-          .then(saldoData => {
-            const totalConfig = Number(saldoData.totalConfigurada || config.cantidad || 0);
-            const reg = Number(saldoData.cantidadRegistrada || 0);
-            const saldo = saldoData.saldoPendiente > 0 ? saldoData.saldoPendiente : (totalConfig > 0 ? Math.max(0, totalConfig - reg) : 0);
-            
-            currentJornalTotal = totalConfig;
-            currentJornalSaldo = saldo;
-            
-            if (saldo > 0) {
-              inputCantidadIngresar.value = saldo;
-              badgCant.textContent = `Pend: ${saldo}/${totalConfig}`;
-              lblValores.value = `${totalConfig} (Pend: ${saldo}) / ${config.valorUnitario !== null && config.valorUnitario !== undefined ? Number(config.valorUnitario).toFixed(2) : '---'}`;
-            } else if (totalConfig > 0) {
-              inputCantidadIngresar.value = totalConfig;
-              badgCant.textContent = `${totalConfig} ${uCant}`;
-            }
-            recalculateWorkerValues();
-            renderSelectedOperarios();
-            saveFormDraft();
-          })
-          .catch(err => {
-            console.warn('Error obteniendo saldo Jornal:', err.message);
-          });
-      }
+      // En Jornal el saldo se consulta específicamente por cada lote en handleLoteChange
     }
 
     // Recalcular valores de operarios
@@ -1672,15 +1700,25 @@
       renderSelectedOperarios();
       recalculateWorkerValues();
 
-      // Si es Jornal, refrescar el saldo pendiente disponible para la próxima tanda
+      // Si es Jornal, refrescar el saldo pendiente disponible para el lote actual
       if (!isDestajo && activeOt && ubicod) {
-        window.AppFetch(`/api/produccion/ots/${encodeURIComponent(activeOt)}/saldo-jornal?ubicod=${encodeURIComponent(ubicod)}&procod=${encodeURIComponent(activeProduct || '')}`)
+        const currentLot = selectLote ? selectLote.value : null;
+        window.AppFetch(`/api/produccion/ots/${encodeURIComponent(activeOt)}/saldo-jornal?ubicod=${encodeURIComponent(ubicod)}&procod=${encodeURIComponent(activeProduct || '')}&lotcod=${encodeURIComponent(currentLot || '')}`)
           .then(saldoData => {
             const totalConfig = saldoData.totalConfigurada || (config ? config.cantidad : 0) || 0;
             const reg = saldoData.cantidadRegistrada || 0;
             const saldo = saldoData.saldoPendiente > 0 ? saldoData.saldoPendiente : (totalConfig > 0 ? Math.max(0, totalConfig - reg) : 0);
             inputCantidadIngresar.value = saldo;
-            badgCant.textContent = `Pend: ${saldo}/${totalConfig}`;
+            badgCant.textContent = (saldo === 0 && totalConfig > 0) ? `Completado (${reg}/${totalConfig})` : `Pend: ${saldo}/${totalConfig}`;
+            if (saldo === 0 && totalConfig > 0) {
+              badgCant.style.color = '#dc2626';
+              badgCant.style.fontWeight = '800';
+              if (btnAccept) btnAccept.disabled = true;
+            } else {
+              badgCant.style.color = '';
+              badgCant.style.fontWeight = '';
+              if (btnAccept) btnAccept.disabled = false;
+            }
             lblValores.value = `${totalConfig} (Pend: ${saldo}) / ${config && config.valorUnitario !== null && config.valorUnitario !== undefined ? Number(config.valorUnitario).toFixed(2) : '---'}`;
           })
           .catch(() => {});
