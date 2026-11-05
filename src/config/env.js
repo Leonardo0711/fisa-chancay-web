@@ -32,7 +32,7 @@ module.exports = {
   DB_NAME: process.env.DB_NAME || 'FTALLER',
   DB_USER: process.env.DB_USER,
   DB_PASSWORD: process.env.DB_PASSWORD,
-  DB_PORT: parseInt(process.env.DB_PORT || '1433', 10),
+  DB_PORT: parseInt(process.env.DB_PORT || process.env.APP_SQL_PORT || '1433', 10),
   DB_ENCRYPT: process.env.DB_ENCRYPT === 'true',
   DB_TRUST_SERVER_CERTIFICATE: process.env.DB_TRUST_SERVER_CERTIFICATE === 'true',
 
