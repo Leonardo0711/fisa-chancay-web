@@ -5,6 +5,7 @@ const env = require('./env');
 
 const config = {
   server: env.DB_SERVER,
+  port: env.DB_PORT,
   database: env.DB_NAME,
   user: env.DB_USER,
   password: env.DB_PASSWORD,
@@ -53,7 +54,7 @@ async function close() {
 async function query(sqlText, params = {}) {
   const p = await connect();
   const req = p.request();
-  
+
   for (const [key, val] of Object.entries(params)) {
     if (val && typeof val === 'object' && 'type' in val && 'value' in val) {
       req.input(key, val.type, val.value);
@@ -61,7 +62,7 @@ async function query(sqlText, params = {}) {
       req.input(key, val);
     }
   }
-  
+
   return req.query(sqlText);
 }
 
