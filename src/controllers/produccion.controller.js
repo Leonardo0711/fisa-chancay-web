@@ -213,12 +213,13 @@ async function apiExportarReporteSeguimiento(req, res, next) {
       tiptra: req.query.tiptra,
       tracod: req.query.tracod
     };
-    const csvContent = await produccionService.generarReporteSeguimientoCsv(filters);
+    const excelBuffer = await produccionService.generarReporteSeguimientoExcel(filters);
     const dateStr = new Date().toISOString().slice(0, 10);
-    const filename = `Seguimiento_Produccion_Chancay_${dateStr}.csv`;
-    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    const filename = `Seguimiento_Produccion_Chancay_${dateStr}.xlsx`;
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    return res.send(csvContent);
+    return res.send(Buffer.from(excelBuffer));
   } catch (err) {
     next(err);
   }

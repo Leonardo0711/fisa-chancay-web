@@ -3,6 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const ExcelJS = require('exceljs');
 const produccionDal = require('../dal/produccion.dal');
 
 // Mock data for location configurations per product (replicating mockups/Excel data)
@@ -496,6 +497,253 @@ async function generarReporteSeguimientoCsv(filters = {}) {
   return lines.join('\r\n');
 }
 
+/**
+ * Genera un archivo binario Excel (.xlsx) altamente estilizado con la identidad corporativa FISA.
+ * Incluye cabecera corporativa, metadatos, filtros aplicados, auto-filtros, paneles fijos,
+ * anchos de columna automáticos, formato numérico de moneda y fila de totales contables.
+ */
+async function generarReporteSeguimientoExcel(filters = {}) {
+  const rows = await produccionDal.obtenerReporteSeguimiento(filters);
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'FISA - Sistema Planta Chancay';
+  workbook.lastModifiedBy = 'FISA Chancay Web Admin';
+  workbook.created = new Date();
+  workbook.modified = new Date();
+
+  const worksheet = workbook.addWorksheet('Seguimiento Producción', {
+    views: [{ showGridLines: true, state: 'frozen', ySplit: 6 }],
+    properties: { defaultRowHeight: 20 }
+  });
+
+  // 1. Cabecera Corporativa
+  // Fila 1: Título Empresa
+  worksheet.mergeCells('A1:K1');
+  const title1 = worksheet.getCell('A1');
+  title1.value = 'FISA - FIBRAS INDUSTRIALES S.A. | PLANTA CHANCAY';
+  title1.font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
+  title1.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0F2C4D' } // Navy FISA
+  };
+  title1.alignment = { vertical: 'middle', horizontal: 'center' };
+  worksheet.getRow(1).height = 28;
+
+  // Fila 2: Título del Reporte
+  worksheet.mergeCells('A2:K2');
+  const title2 = worksheet.getCell('A2');
+  title2.value = 'REPORTE DE SEGUIMIENTO DE CONTROL DE PRODUCCIÓN';
+  title2.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2C4D' } };
+  title2.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFF1F5F9' }
+  };
+  title2.alignment = { vertical: 'middle', horizontal: 'center' };
+  worksheet.getRow(2).height = 22;
+
+  // Fila 3: Filtros Aplicados
+  const activeFilters = [];
+  if (filters.fecDesde) activeFilters.push(`Desde: ${filters.fecDesde}`);
+  if (filters.fecHasta) activeFilters.push(`Hasta: ${filters.fecHasta}`);
+  if (filters.otcod) activeFilters.push(`OT: ${filters.otcod}`);
+  if (filters.lotcod) activeFilters.push(`Lote: ${filters.lotcod}`);
+  if (filters.tiptra) activeFilters.push(`Modalidad: ${filters.tiptra === 'D' ? 'DESTAJO' : (filters.tiptra === 'J' ? 'JORNAL' : filters.tiptra)}`);
+  if (filters.tracod) activeFilters.push(`Trabajador: ${filters.tracod}`);
+
+  const filterText = activeFilters.length > 0 
+    ? `Filtros Aplicados: ${activeFilters.join('   |   ')}`
+    : 'Filtros Aplicados: Ninguno (Mostrando histórico completo según límite)';
+
+  worksheet.mergeCells('A3:K3');
+  const rowFiltros = worksheet.getCell('A3');
+  rowFiltros.value = filterText;
+  rowFiltros.font = { name: 'Calibri', size: 9.5, italic: true, color: { argb: 'FF0284C7' } };
+  rowFiltros.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  worksheet.getRow(3).height = 19;
+
+  // Fila 4: Metadatos de Emisión
+  const fechaEmision = new Date().toLocaleString('es-PE', { timeZone: 'America/Lima' });
+  let totalVuAcumulado = 0;
+  for (const r of rows) {
+    totalVuAcumulado += Number(r.valor_unitario || 0);
+  }
+
+  worksheet.mergeCells('A4:K4');
+  const rowMeta = worksheet.getCell('A4');
+  rowMeta.value = `Emisión: ${fechaEmision}   |   Total Registros: ${rows.length.toLocaleString('es-PE')}   |   VU Total Acumulado: S/ ${totalVuAcumulado.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  rowMeta.font = { name: 'Calibri', size: 9, bold: true, color: { argb: 'FF475569' } };
+  rowMeta.alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+  worksheet.getRow(4).height = 18;
+
+  // Fila 5: Separador visual
+  worksheet.getRow(5).height = 6;
+
+  // Fila 6: Encabezados de Columna
+  const colConfigs = [
+    { header: 'N° CONTROL', key: 'cpcod', width: 14, align: 'center' },
+    { header: 'FECHA / HORA', key: 'fecusucre', width: 22, align: 'center' },
+    { header: 'ORDEN DE TRABAJO', key: 'otcod', width: 20, align: 'center' },
+    { header: 'CLIENTE', key: 'clinom', width: 34, align: 'left' },
+    { header: 'PRODUCTO', key: 'pronom', width: 44, align: 'left' },
+    { header: 'LOTE', key: 'lotcod', width: 14, align: 'center' },
+    { header: 'MODALIDAD', key: 'tiptraDesc', width: 14, align: 'center' },
+    { header: 'UBICACIÓN', key: 'ubinom', width: 30, align: 'left' },
+    { header: 'CÓD. OPERARIO', key: 'tracod', width: 16, align: 'center' },
+    { header: 'TRABAJADOR / OPERARIO', key: 'traraz', width: 36, align: 'left' },
+    { header: 'VALOR UNITARIO (VU)', key: 'valor_unitario', width: 22, align: 'right' }
+  ];
+
+  const headerRow = worksheet.getRow(6);
+  headerRow.height = 26;
+
+  colConfigs.forEach((c, idx) => {
+    const colNumber = idx + 1;
+    const cell = headerRow.getCell(colNumber);
+    cell.value = c.header;
+    cell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+    cell.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FF0F2C4D' }
+    };
+    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF0F2C4D' } },
+      bottom: { style: 'medium', color: { argb: 'FF0284C7' } },
+      left: { style: 'thin', color: { argb: 'FF1E3A5F' } },
+      right: { style: 'thin', color: { argb: 'FF1E3A5F' } }
+    };
+    worksheet.getColumn(colNumber).width = c.width;
+  });
+
+  // 2. Filas de Datos
+  const thinBorder = {
+    top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+  };
+
+  rows.forEach((r, rIdx) => {
+    const rowNum = 7 + rIdx;
+    const row = worksheet.getRow(rowNum);
+    row.height = 20;
+
+    let fechaFormateada = '';
+    if (r.fecusucre) {
+      const match = String(r.fecusucre).match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/);
+      if (match) {
+        fechaFormateada = `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}:${match[6]}`;
+      } else {
+        fechaFormateada = r.fecusucre;
+      }
+    }
+
+    const vuVal = Number(r.valor_unitario || 0);
+    const isEven = rIdx % 2 === 0;
+    const bgColor = isEven ? 'FFFFFFFF' : 'FFF8FAFC';
+
+    const values = [
+      r.cpcod,
+      fechaFormateada,
+      r.otcod,
+      r.clinom || '',
+      r.pronom || '',
+      r.lotcod || '',
+      r.tiptraDesc || (r.tiptra === 'D' ? 'DESTAJO' : 'JORNAL'),
+      r.ubinom || '',
+      r.tracod || '',
+      r.traraz || '',
+      vuVal
+    ];
+
+    values.forEach((val, cIdx) => {
+      const cell = row.getCell(cIdx + 1);
+      cell.value = val;
+      cell.border = thinBorder;
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: bgColor }
+      };
+
+      const cfg = colConfigs[cIdx];
+      cell.alignment = { vertical: 'middle', horizontal: cfg.align };
+
+      if (cIdx === 10) {
+        // VU Columna numérica
+        cell.numFmt = '#,##0.00';
+        cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF0F2C4D' } };
+      } else if (cIdx === 0 || cIdx === 2 || cIdx === 8) {
+        // Códigos
+        cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: 'FF1E293B' } };
+      } else if (cIdx === 6) {
+        // Modalidad (Destajo / Jornal)
+        const isDestajo = val === 'DESTAJO';
+        cell.font = { 
+          name: 'Calibri', 
+          size: 9.5, 
+          bold: true, 
+          color: { argb: isDestajo ? 'FF0284C7' : 'FF7E22CE' } 
+        };
+      } else {
+        cell.font = { name: 'Calibri', size: 9.5, color: { argb: 'FF334155' } };
+      }
+    });
+  });
+
+  // 3. Fila de Totales
+  const totalRowNum = 7 + rows.length;
+  const totalRow = worksheet.getRow(totalRowNum);
+  totalRow.height = 24;
+
+  worksheet.mergeCells(`A${totalRowNum}:J${totalRowNum}`);
+  const totalLabelCell = totalRow.getCell(1);
+  totalLabelCell.value = 'TOTAL VALOR UNITARIO ACUMULADO:';
+  totalLabelCell.font = { name: 'Calibri', size: 10, bold: true, color: { argb: 'FF0F2C4D' } };
+  totalLabelCell.alignment = { vertical: 'middle', horizontal: 'right', indent: 1 };
+  totalLabelCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE2E8F0' }
+  };
+  totalLabelCell.border = {
+    top: { style: 'medium', color: { argb: 'FF0F2C4D' } },
+    bottom: { style: 'double', color: { argb: 'FF0F2C4D' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+  };
+
+  const totalValueCell = totalRow.getCell(11);
+  if (rows.length > 0) {
+    totalValueCell.value = { formula: `SUM(K7:K${totalRowNum - 1})`, result: totalVuAcumulado };
+  } else {
+    totalValueCell.value = 0;
+  }
+  totalValueCell.numFmt = '#,##0.00';
+  totalValueCell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FF0F2C4D' } };
+  totalValueCell.alignment = { vertical: 'middle', horizontal: 'right' };
+  totalValueCell.fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FFE2E8F0' }
+  };
+  totalValueCell.border = {
+    top: { style: 'medium', color: { argb: 'FF0F2C4D' } },
+    bottom: { style: 'double', color: { argb: 'FF0F2C4D' } },
+    left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+    right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+  };
+
+  // 4. Auto-filtro activo en la cabecera
+  worksheet.autoFilter = `A6:K${rows.length > 0 ? (totalRowNum - 1) : 6}`;
+
+  // 5. Generar Buffer de bytes del archivo .xlsx
+  return workbook.xlsx.writeBuffer();
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
@@ -511,6 +759,7 @@ module.exports = {
   obtenerSaldoPendienteJornal,
   actualizarRegistroProduccion,
   obtenerReporteSeguimiento,
-  generarReporteSeguimientoCsv
+  generarReporteSeguimientoCsv,
+  generarReporteSeguimientoExcel
 };
 
