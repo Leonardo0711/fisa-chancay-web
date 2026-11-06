@@ -784,6 +784,78 @@ async function actualizarRegistroProduccion(cpcod, updateData, userContext) {
   }
 }
 
+/**
+ * Consulta específica de seguimiento para control de producción (solicitada por Chancay).
+ * Permite combinar filtros: rango de fechas, orden de trabajo, lote, destajo/jornal y trabajador.
+ */
+async function obtenerReporteSeguimiento(filters = {}) {
+  const pool = await db.connect();
+  const req = pool.request();
+  const conditions = [];
+
+  const fecDesde = (filters.fecDesde || '').trim();
+  const fecHasta = (filters.fecHasta || '').trim();
+  const otcod = (filters.otcod || '').trim();
+  const lotcod = (filters.lotcod || '').trim();
+  const tiptra = (filters.tiptra || '').trim().toUpperCase();
+  const tracod = (filters.tracod || '').trim();
+
+  if (fecDesde) {
+    conditions.push('CAST(a.fecusucre AS DATE) >= @fecDesde');
+    req.input('fecDesde', db.sql.VarChar(10), fecDesde);
+  }
+  if (fecHasta) {
+    conditions.push('CAST(a.fecusucre AS DATE) <= @fecHasta');
+    req.input('fecHasta', db.sql.VarChar(10), fecHasta);
+  }
+  if (otcod) {
+    conditions.push('a.otcod LIKE @otcod');
+    req.input('otcod', db.sql.VarChar(50), `%${otcod}%`);
+  }
+  if (lotcod) {
+    conditions.push('a.lotcod LIKE @lotcod');
+    req.input('lotcod', db.sql.VarChar(50), `%${lotcod}%`);
+  }
+  if (tiptra === 'D' || tiptra === 'J') {
+    conditions.push('a.tiptra = @tiptra');
+    req.input('tiptra', db.sql.VarChar(5), tiptra);
+  }
+  if (tracod) {
+    conditions.push('(c.tracod LIKE @tracod OR c.traraz LIKE @tracod)');
+    req.input('tracod', db.sql.VarChar(100), `%${tracod}%`);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const limite = Math.min(parseInt(filters.limite, 10) || 3000, 15000);
+
+  const query = `
+    SELECT TOP (${limite})
+      RTRIM(a.cpcod) AS cpcod,
+      CONVERT(varchar(19), a.fecusucre, 120) AS fecusucre,
+      RTRIM(a.otcod) AS otcod,
+      ISNULL(RTRIM(a.clinom), '') AS clinom,
+      ISNULL(RTRIM(a.pronom), '') AS pronom,
+      ISNULL(RTRIM(a.lotcod), '') AS lotcod,
+      RTRIM(a.tiptra) AS tiptra,
+      ISNULL(RTRIM(b.ubinom), '') AS ubinom,
+      RTRIM(c.tracod) AS tracod,
+      ISNULL(RTRIM(c.traraz), '') AS traraz,
+      c.valor_unitario
+    FROM TAL_CONTROL_PRODUCCION a WITH(NOLOCK)
+    INNER JOIN PAR_UBICACION b WITH(NOLOCK) ON b.empcod = a.empcod AND b.ubicod = a.ubicod
+    INNER JOIN TAL_CONTROL_PRODUCCION_DETALLE c WITH(NOLOCK) ON c.empcod = a.empcod AND c.cpcod = a.cpcod
+    ${whereClause}
+    ORDER BY a.cpcod DESC, c.tracod
+  `;
+
+  const res = await req.query(query);
+  return res.recordset.map(r => ({
+    ...r,
+    tiptraDesc: r.tiptra === 'D' ? 'DESTAJO' : (r.tiptra === 'J' ? 'JORNAL' : r.tiptra),
+    valor_unitario: Number(r.valor_unitario || 0)
+  }));
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
@@ -800,7 +872,8 @@ module.exports = {
   obtenerDetalleRegistroProduccion,
   obtenerRegistrosCompletosParaExportar,
   getWorkersDictionary,
-  eliminarRegistroProduccion
+  eliminarRegistroProduccion,
+  obtenerReporteSeguimiento
 };
 
 

@@ -1,0 +1,350 @@
+<%- include('partials/header') %>
+<link rel="stylesheet" href="<%= baseUrl %>css/modules.css">
+<style>
+  /* Prevención de scroll global: el viewport se ajusta exactamente entre navbar y footer */
+  html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden !important;
+  }
+
+  .app-shell {
+    height: 100dvh;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .main {
+    height: calc(100dvh - var(--nav-h) - var(--footer-h)) !important;
+    max-height: calc(100dvh - var(--nav-h) - var(--footer-h)) !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 !important;
+  }
+
+  @supports not (height: 100dvh) {
+    .app-shell {
+      height: 100svh;
+      max-height: 100svh;
+    }
+    .main {
+      height: calc(100svh - var(--nav-h) - var(--footer-h)) !important;
+      max-height: calc(100svh - var(--nav-h) - var(--footer-h)) !important;
+    }
+  }
+
+  /* Contenedor principal de la vista: ocupa el 100% del alto disponible */
+  .seguimiento-viewport-container {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 10px clamp(12px, 2vw, 24px) 10px clamp(12px, 2vw, 24px);
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 1850px;
+    margin: 0 auto;
+  }
+
+  /* Tarjeta contenedora adaptativa */
+  .seguimiento-monitor-card {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+    max-height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #ffffff;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(15, 44, 77, 0.05);
+    padding: 14px 18px 12px 18px;
+    box-sizing: border-box;
+    overflow: hidden;
+    margin: 0;
+  }
+
+  /* Cabecera superior fija dentro de la tarjeta */
+  .seguimiento-monitor-header {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color, #e2e8f0);
+    padding-bottom: 8px;
+  }
+
+  /* Panel de Filtros Combinables */
+  .seguimiento-filters-bar {
+    flex: 0 0 auto;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filters-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 10px;
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .filter-label {
+    font-size: 0.73rem;
+    font-weight: 800;
+    color: var(--brand-900, #0f2c4d);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .filter-input {
+    height: 34px !important;
+    font-size: 0.82rem !important;
+    padding: 4px 10px !important;
+    border: 1px solid #cbd5e1 !important;
+    border-radius: 6px !important;
+    background: #ffffff !important;
+    box-sizing: border-box !important;
+  }
+
+  .filter-input:focus {
+    border-color: #0284c7 !important;
+    box-shadow: 0 0 0 2px rgba(2, 132, 199, 0.15) !important;
+    outline: none !important;
+  }
+
+  .summary-bar {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: #64748b;
+    padding-top: 4px;
+    border-top: 1px dashed #e2e8f0;
+  }
+
+  /* Contenedor con scroll interno adaptativo */
+  .seguimiento-table-scroll {
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+    border: 1px solid var(--border-color, #e2e8f0);
+    border-radius: 8px;
+    background: #ffffff;
+    position: relative;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 #f8fafc;
+  }
+
+  .seguimiento-table-scroll::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .seguimiento-table-scroll::-webkit-scrollbar-track {
+    background: #f8fafc;
+    border-radius: 4px;
+  }
+  .seguimiento-table-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+  .seguimiento-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* Encabezado pegajoso de la tabla (Sticky thead) */
+  .seguimiento-table-scroll thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .seguimiento-table-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: #f8fafc !important;
+    color: var(--brand-900, #0f2c4d);
+    box-shadow: inset 0 -1px 0 var(--border-color, #e2e8f0);
+    white-space: nowrap;
+    user-select: none;
+    font-size: 0.8rem;
+    padding: 9px 10px;
+    font-weight: 800;
+  }
+
+  #tableReporteSeguimiento {
+    width: 100%;
+    min-width: 1550px;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  #tbodyReporteSeguimiento tr {
+    transition: background-color 0.12s ease;
+  }
+
+  #tbodyReporteSeguimiento tr:hover {
+    background-color: #f1f5f9 !important;
+  }
+</style>
+
+<div class="seguimiento-viewport-container">
+
+  <div class="card seguimiento-monitor-card animate-in">
+    
+    <!-- Encabezado de Sección -->
+    <div class="seguimiento-monitor-header">
+      <div>
+        <h2 style="margin: 0 0 4px 0; font-size: 1.15rem; font-weight: 800; color: var(--brand-900); text-transform: uppercase; letter-spacing: 0.5px;">
+          Seguimiento de Control de Producción &mdash; Reporte Detallado
+        </h2>
+        <p style="margin: 0; color: var(--muted); font-size: 0.84rem;">
+          Consulta detallada por operario. Combine filtros por fechas, OT, lote, modalidad y trabajador.
+        </p>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+        <button id="btnExportExcel" type="button" class="btn btn--brand" style="background: #107c41; border-color: #107c41; font-weight: 700; font-size: 0.84rem; padding: 7px 14px;">
+          Exportar a Excel
+        </button>
+        <a href="<%= baseUrl %>home" class="btn btn-soft" style="font-weight: 700; font-size: 0.84rem; padding: 7px 14px; text-decoration: none;">
+          Ver Registros Recientes
+        </a>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros Combinables -->
+    <div class="seguimiento-filters-bar">
+      <form id="formFiltrosSeguimiento" onsubmit="return false;">
+        <div class="filters-row">
+          
+          <!-- Rango de Fechas: Desde -->
+          <div class="filter-group" style="width: 140px;">
+            <label for="filtroFecDesde" class="filter-label">Fecha Desde</label>
+            <input type="date" id="filtroFecDesde" class="filter-input" />
+          </div>
+
+          <!-- Rango de Fechas: Hasta -->
+          <div class="filter-group" style="width: 140px;">
+            <label for="filtroFecHasta" class="filter-label">Fecha Hasta</label>
+            <input type="date" id="filtroFecHasta" class="filter-input" />
+          </div>
+
+          <!-- Orden de Trabajo -->
+          <div class="filter-group" style="min-width: 140px; flex: 1;">
+            <label for="filtroOt" class="filter-label">Orden de Trabajo</label>
+            <input type="text" id="filtroOt" placeholder="EJ: OT00040373" class="filter-input input--upper" />
+          </div>
+
+          <!-- Lote -->
+          <div class="filter-group" style="width: 140px;">
+            <label for="filtroLote" class="filter-label">Lote</label>
+            <input type="text" id="filtroLote" placeholder="EJ: J001779" class="filter-input input--upper" />
+          </div>
+
+          <!-- Destajo / Jornal -->
+          <div class="filter-group" style="width: 150px;">
+            <label for="filtroTiptra" class="filter-label">Destajo / Jornal</label>
+            <select id="filtroTiptra" class="filter-input">
+              <option value="">TODOS LOS TIPOS</option>
+              <option value="D">DESTAJO (D)</option>
+              <option value="J">JORNAL (J)</option>
+            </select>
+          </div>
+
+          <!-- Trabajador -->
+          <div class="filter-group" style="min-width: 200px; flex: 1.5;">
+            <label for="filtroTrabajador" class="filter-label">Trabajador (Cód. o Nombre)</label>
+            <input type="text" id="filtroTrabajador" placeholder="EJ: T0039 O APELLIDO..." class="filter-input input--upper" />
+          </div>
+
+          <!-- Botones de Acción de Filtro -->
+          <div style="display: flex; gap: 6px; align-items: flex-end;">
+            <button id="btnBuscar" type="submit" class="btn btn--brand" style="height: 34px; font-weight: 800; font-size: 0.82rem; padding: 0 16px;">
+              Filtrar
+            </button>
+            <button id="btnLimpiar" type="button" class="btn btn-soft" style="height: 34px; font-weight: 700; font-size: 0.82rem; padding: 0 12px;">
+              Limpiar
+            </button>
+          </div>
+
+        </div>
+      </form>
+
+      <!-- Barra de Resumen y Métricas Rápidas -->
+      <div class="summary-bar">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="badgeTotalRegistros" class="badge" style="background: #e2e8f0; color: #1e293b; font-weight: 800; font-size: 0.8rem; padding: 4px 10px; border-radius: 4px;">
+            Cargando registros...
+          </span>
+          <span id="badgeFiltrosActivos" style="font-size: 0.78rem; color: #64748b;">
+            Sin filtros aplicados
+          </span>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <div style="font-size: 0.82rem; color: #334155;">
+            Total VU Acumulado: <strong id="lblTotalVu" style="color: var(--brand-900); font-size: 0.92rem; font-family: monospace;">0.00</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabla Principal con Scroll Interno -->
+    <div class="table-clip seguimiento-table-scroll">
+      <table class="table table--grid" id="tableReporteSeguimiento">
+        <thead>
+          <tr>
+            <th style="text-align: left; width: 100px;">N° CONTROL</th>
+            <th style="text-align: left; width: 140px;">FECHA / HORA</th>
+            <th style="text-align: left; width: 125px;">ORDEN TRABAJO</th>
+            <th style="text-align: left; width: 220px;">CLIENTE</th>
+            <th style="text-align: left; width: 260px;">PRODUCTO</th>
+            <th style="text-align: left; width: 110px;">LOTE</th>
+            <th style="text-align: center; width: 100px;">TIPO</th>
+            <th style="text-align: left; width: 200px;">UBICACIÓN</th>
+            <th style="text-align: left; width: 95px;">CÓD. OPER.</th>
+            <th style="text-align: left; width: 220px;">TRABAJADOR</th>
+            <th style="text-align: right; width: 110px;">V. UNITARIO</th>
+          </tr>
+        </thead>
+        <tbody id="tbodyReporteSeguimiento">
+          <tr class="row-empty">
+            <td colspan="11" style="text-align: center; padding: 32px; color: var(--muted);">
+              Cargando registros de seguimiento...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div> <!-- Closes .seguimiento-monitor-card -->
+
+</div> <!-- Closes .seguimiento-viewport-container -->
+
+<%- include('partials/footer') %>
+

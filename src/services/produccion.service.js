@@ -448,6 +448,54 @@ async function actualizarRegistroProduccion(cpcod, updateData, userContext) {
   return produccionDal.actualizarRegistroProduccion(cpcod, updateData, userContext);
 }
 
+async function obtenerReporteSeguimiento(filters = {}) {
+  return produccionDal.obtenerReporteSeguimiento(filters);
+}
+
+async function generarReporteSeguimientoCsv(filters = {}) {
+  const rows = await produccionDal.obtenerReporteSeguimiento({ ...filters, limite: 10000 });
+  const headers = [
+    'N° Control',
+    'Fecha / Hora',
+    'Orden de Trabajo',
+    'Cliente',
+    'Producto',
+    'Lote',
+    'Tipo',
+    'Ubicación',
+    'Cód. Trabajador',
+    'Trabajador',
+    'Valor Unitario'
+  ];
+
+  const lines = ['\uFEFF' + headers.map(escapeCsvField).join(';')];
+  for (const r of rows) {
+    let fecha = '';
+    if (r.fecusucre) {
+      const match = String(r.fecusucre).match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2}):(\d{2})/);
+      if (match) {
+        fecha = `${match[3]}/${match[2]}/${match[1]} ${match[4]}:${match[5]}:${match[6]}`;
+      } else {
+        fecha = r.fecusucre;
+      }
+    }
+    lines.push([
+      escapeCsvField(r.cpcod),
+      escapeCsvField(fecha),
+      escapeCsvField(r.otcod),
+      escapeCsvField(r.clinom),
+      escapeCsvField(r.pronom),
+      escapeCsvField(r.lotcod),
+      escapeCsvField(r.tiptraDesc),
+      escapeCsvField(r.ubinom),
+      escapeCsvField(r.tracod),
+      escapeCsvField(r.traraz),
+      escapeCsvField(r.valor_unitario !== null ? Number(r.valor_unitario).toFixed(2) : '0.00')
+    ].join(';'));
+  }
+  return lines.join('\r\n');
+}
+
 module.exports = {
   buscarOts,
   obtenerDetallesOt,
@@ -461,6 +509,8 @@ module.exports = {
   generarReporteCsv,
   eliminarRegistroProduccion,
   obtenerSaldoPendienteJornal,
-  actualizarRegistroProduccion
+  actualizarRegistroProduccion,
+  obtenerReporteSeguimiento,
+  generarReporteSeguimientoCsv
 };
 

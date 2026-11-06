@@ -55,6 +55,7 @@
           <div class="nav-panel" id="nav-panel">
             <nav class="nav-links">
               <a href="<%= baseUrl %>home" class="nav-link <%= (locals.path === '/home') ? 'is-active' : '' %>">Inicio</a>
+              <a href="<%= baseUrl %>reporte-seguimiento" class="nav-link <%= (locals.path === '/reporte-seguimiento') ? 'is-active' : '' %>">Seguimiento</a>
               
               <% if (user.usuadm) { %>
                 <div class="nav-dropdown" id="segDropdown">

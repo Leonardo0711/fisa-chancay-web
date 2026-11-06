@@ -26,5 +26,10 @@ router.get('/api/produccion/registros/:cpcod/detalle', requireAuth, produccionCo
 router.put('/api/produccion/registros/:cpcod', requireAuth, requirePermission('PRODUCCION', 'save'), produccionController.apiActualizarRegistroProduccion);
 router.delete('/api/produccion/registros/:cpcod', requireAuth, produccionController.apiEliminarRegistroProduccion);
 
+// Seguimiento Específico de Control de Producción
+router.get('/reporte-seguimiento', requireAuth, produccionController.renderReporteSeguimiento);
+router.get('/api/reportes/seguimiento-produccion', requireAuth, produccionController.apiObtenerReporteSeguimiento);
+router.get('/api/reportes/seguimiento-produccion/exportar', requireAuth, produccionController.apiExportarReporteSeguimiento);
+
 module.exports = router;
 

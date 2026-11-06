@@ -174,8 +174,59 @@ async function apiActualizarRegistroProduccion(req, res, next) {
   }
 }
 
+async function renderReporteSeguimiento(req, res, next) {
+  try {
+    return res.render('reporte_seguimiento', {
+      title: 'Seguimiento de Producción - FISA Chancay',
+      path: '/reporte-seguimiento'
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiObtenerReporteSeguimiento(req, res, next) {
+  try {
+    const filters = {
+      fecDesde: req.query.fecDesde,
+      fecHasta: req.query.fecHasta,
+      otcod: req.query.otcod,
+      lotcod: req.query.lotcod,
+      tiptra: req.query.tiptra,
+      tracod: req.query.tracod,
+      limite: req.query.limite
+    };
+    const data = await produccionService.obtenerReporteSeguimiento(filters);
+    return res.json({ ok: true, data, total: data.length });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function apiExportarReporteSeguimiento(req, res, next) {
+  try {
+    const filters = {
+      fecDesde: req.query.fecDesde,
+      fecHasta: req.query.fecHasta,
+      otcod: req.query.otcod,
+      lotcod: req.query.lotcod,
+      tiptra: req.query.tiptra,
+      tracod: req.query.tracod
+    };
+    const csvContent = await produccionService.generarReporteSeguimientoCsv(filters);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const filename = `Seguimiento_Produccion_Chancay_${dateStr}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(csvContent);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   renderProduccion,
+  renderReporteSeguimiento,
   apiBuscarOts,
   apiObtenerDetallesOt,
   apiObtenerLotesOt,
@@ -188,6 +239,8 @@ module.exports = {
   apiExportarRegistrosProduccion,
   apiEliminarRegistroProduccion,
   apiObtenerSaldoJornal,
-  apiActualizarRegistroProduccion
+  apiActualizarRegistroProduccion,
+  apiObtenerReporteSeguimiento,
+  apiExportarReporteSeguimiento
 };
 
