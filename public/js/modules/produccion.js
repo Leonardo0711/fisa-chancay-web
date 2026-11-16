@@ -1268,6 +1268,7 @@
 
     const prevCosturas = getSelectedLotPrevCosturas();
     const inc = getSelectedLotIncompleteCostura();
+    const pendingCosturas = getSelectedLotCosturasPendientes();
     const nextCosturaVal = getSelectedLotNextCostura();
     const startCostura = inc ? inc.costuraNum : nextCosturaVal;
     const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
@@ -1287,7 +1288,7 @@
 
     if (pendingCosturas && pendingCosturas.length > 0) {
       const renderSet = new Set();
-      const numToTake = cantCosturas > 0 ? cantCosturas : pendingCosturas.length;
+      const numToTake = cantCosturas > 0 ? cantCosturas : 0;
       pendingCosturas.slice(0, numToTake).forEach(n => renderSet.add(n));
       selectedOperarios.forEach(op => {
         if (op.costuraNum) renderSet.add(op.costuraNum);
