@@ -332,6 +332,51 @@
     return null;
   }
 
+  function getSelectedLotNextCostura() {
+    const lotVal = selectLote ? String(selectLote.value || '').trim() : '';
+    const config = getCurrentLocationConfig();
+    const isUniversal = config && (config.ubiuni === true || config.ubiuni === 1 || String(config.ubiuni) === 'true');
+
+    // 1. Si hay un lote seleccionado en el dropdown, buscar su nextCostura
+    if (lotVal && Array.isArray(currentLotesData)) {
+      const match = currentLotesData.find(l => String(l.lotcod || '').trim() === lotVal);
+      if (match && match.nextCostura !== undefined && match.nextCostura !== null) {
+        const val = parseInt(match.nextCostura, 10);
+        if (!isNaN(val) && val > 0) return val;
+      }
+    }
+    if (selectLote && lotVal) {
+      const opt = selectLote.querySelector(`option[value="${lotVal}"]`);
+      if (opt && opt.dataset && opt.dataset.nextCostura) {
+        const val = parseInt(opt.dataset.nextCostura, 10);
+        if (!isNaN(val) && val > 0) return val;
+      }
+    }
+    if (selectLote && selectLote.selectedIndex >= 0) {
+      const opt = selectLote.options[selectLote.selectedIndex];
+      if (opt && opt.dataset && opt.dataset.nextCostura) {
+        const val = parseInt(opt.dataset.nextCostura, 10);
+        if (!isNaN(val) && val > 0) return val;
+      }
+    }
+
+    // 2. Si es Universal o no hay lote específico, buscar el mayor nextCostura entre todos los lotes de la OT
+    if (Array.isArray(currentLotesData) && currentLotesData.length > 0) {
+      const nextVals = currentLotesData
+        .map(l => parseInt(l.nextCostura, 10))
+        .filter(n => !isNaN(n) && n > 0);
+      if (nextVals.length > 0) {
+        if (isUniversal) {
+          return Math.max(...nextVals);
+        }
+      }
+    }
+
+    // 3. Fallback: cantidad previa + 1
+    const prev = getSelectedLotPrevCosturas();
+    return prev > 0 ? (prev + 1) : 1;
+  }
+
   async function loadLotes(otcod, ubicod) {
     try {
       const targetUbicod = ubicod || (selectUbicacion ? selectUbicacion.value : null);
@@ -958,7 +1003,8 @@
     // --- MODO DESTAJO ---
     const prevCosturas = getSelectedLotPrevCosturas();
     const inc = getSelectedLotIncompleteCostura();
-    const startCostura = inc ? inc.costuraNum : (prevCosturas + 1);
+    const nextCosturaVal = getSelectedLotNextCostura();
+    const startCostura = inc ? inc.costuraNum : nextCosturaVal;
     const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
     const totalConfig = (config && config.cantidad !== null && typeof config.cantidad !== 'undefined')
       ? parseInt(config.cantidad, 10) : 0;
@@ -1175,7 +1221,8 @@
 
     const prevCosturas = getSelectedLotPrevCosturas();
     const inc = getSelectedLotIncompleteCostura();
-    const startCostura = inc ? inc.costuraNum : (prevCosturas + 1);
+    const nextCosturaVal = getSelectedLotNextCostura();
+    const startCostura = inc ? inc.costuraNum : nextCosturaVal;
     const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
 
     if (selectedOperarios.size === 0 && cantCosturas === 0) {
@@ -1669,7 +1716,8 @@
       // --- MODO DESTAJO ---
       const prevCosturas = getSelectedLotPrevCosturas();
       const inc = getSelectedLotIncompleteCostura();
-      const startCostura = inc ? inc.costuraNum : (prevCosturas + 1);
+      const nextCosturaVal = getSelectedLotNextCostura();
+      const startCostura = inc ? inc.costuraNum : nextCosturaVal;
       const totalConfig = (config && config.cantidad !== null && typeof config.cantidad !== 'undefined')
         ? parseInt(config.cantidad, 10) : 0;
 

@@ -121,9 +121,39 @@ async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
   req.input('otcod', db.sql.Char(25), otcod.trim());
   req.input('ubicod', db.sql.Char(5), String(ubicod).trim());
 
+  // Verificar si la ubicación es Universal
+  let isUniversal = false;
+  try {
+    const resUbi = await req.query(`SELECT ubiuni FROM PAR_UBICACION WHERE ubicod = @ubicod`);
+    if (resUbi.recordset.length > 0) {
+      isUniversal = resUbi.recordset[0].ubiuni === true || resUbi.recordset[0].ubiuni === 1;
+    }
+  } catch (err) {
+    console.warn('Error verificando ubiuni en obtenerAvanceCosturasLotes:', err.message);
+  }
+
+  // Máxima costura global registrada para esta OT y ubicación (fundamental para correlativo continuo y ubicaciones universales)
+  let maxCosturaGlobal = 0;
+  try {
+    const resMax = await req.query(`
+      SELECT ISNULL(MAX(d.cantidad), 0) AS maxCosturaTotal
+      FROM TAL_CONTROL_PRODUCCION cp WITH(NOLOCK)
+      JOIN TAL_CONTROL_PRODUCCION_DETALLE d WITH(NOLOCK) 
+        ON cp.empcod = d.empcod AND cp.cpcod = d.cpcod
+      WHERE cp.otcod = @otcod 
+        AND cp.ubicod = @ubicod 
+        AND cp.codusuanu IS NULL
+    `);
+    if (resMax.recordset.length > 0) {
+      maxCosturaGlobal = Number(resMax.recordset[0].maxCosturaTotal || 0);
+    }
+  } catch (err) {
+    console.warn('Error obteniendo maxCosturaTotal en obtenerAvanceCosturasLotes:', err.message);
+  }
+
   const query = `
     SELECT 
-      RTRIM(cp.lotcod) AS lotcod,
+      COALESCE(NULLIF(RTRIM(cp.lotcod), ''), '__UNIVERSAL__') AS lotcod,
       ISNULL(d.cantidad, 0) AS costuraNum,
       CAST(ISNULL(SUM(d.valor_unitario), 0) AS DECIMAL(10, 2)) AS totalVu
     FROM TAL_CONTROL_PRODUCCION cp WITH(NOLOCK)
@@ -131,11 +161,9 @@ async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
       ON cp.empcod = d.empcod AND cp.cpcod = d.cpcod
     WHERE cp.otcod = @otcod 
       AND cp.ubicod = @ubicod 
-      AND cp.lotcod IS NOT NULL 
-      AND RTRIM(cp.lotcod) <> ''
       AND cp.codusuanu IS NULL
-    GROUP BY cp.lotcod, d.cantidad
-    ORDER BY cp.lotcod, d.cantidad
+    GROUP BY COALESCE(NULLIF(RTRIM(cp.lotcod), ''), '__UNIVERSAL__'), d.cantidad
+    ORDER BY lotcod, costuraNum
   `;
 
   const res = await req.query(query);
@@ -184,6 +212,8 @@ async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
     let nextCostura;
     if (costuraIncompleta) {
       nextCostura = costuraIncompleta.costuraNum;
+    } else if (isUniversal && maxCosturaGlobal > 0) {
+      nextCostura = maxCosturaGlobal + 1;
     } else if (costuras.length > 0) {
       const maxC = Math.max(...costuras.map(c => c.costuraNum));
       nextCostura = maxC + 1;
@@ -200,6 +230,27 @@ async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
       toString() { return String(this.costurasRegistradas); }
     };
   });
+
+  // Si es universal y hubo registros, asegurar que la metadata global esté disponible
+  if (isUniversal && maxCosturaGlobal > 0) {
+    const globalNext = maxCosturaGlobal + 1;
+    // Si algún lote no tenía registros o se consulta '__UNIVERSAL__'
+    map['__UNIVERSAL__'] = map['__UNIVERSAL__'] || {
+      costurasRegistradas: maxCosturaGlobal,
+      costuraIncompleta: null,
+      nextCostura: globalNext,
+      detalles: {},
+      valueOf() { return this.costurasRegistradas; },
+      toString() { return String(this.costurasRegistradas); }
+    };
+
+    // Para todos los lotes mapeados en esta ubicación universal, sincronizar nextCostura con el máximo global
+    Object.keys(map).forEach(k => {
+      if (!map[k].costuraIncompleta) {
+        map[k].nextCostura = globalNext;
+      }
+    });
+  }
 
   return map;
 }

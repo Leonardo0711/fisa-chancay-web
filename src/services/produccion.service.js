@@ -134,7 +134,9 @@ async function obtenerLotesOt(otcod, ubicod) {
     } else {
       lotNumber = idx + 1;
     }
-    const info = costurasMap[lot] || { costurasRegistradas: 0, costuraIncompleta: null, nextCostura: 1 };
+    const info = costurasMap[lot] 
+      || (costurasMap['__UNIVERSAL__'] ? costurasMap['__UNIVERSAL__'] : null) 
+      || { costurasRegistradas: 0, costuraIncompleta: null, nextCostura: 1 };
     const costurasReg = typeof info === 'object' && info.costurasRegistradas !== undefined ? info.costurasRegistradas : (parseInt(info, 10) || 0);
 
     return {
