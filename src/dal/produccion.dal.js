@@ -114,7 +114,7 @@ async function obtenerLotesProducidosDeOt(otcod, ubicod) {
  * Gets progress of registered costuras per lot for a given OT and location in Destajo.
  * Calculates completed vs incomplete costuras based on accumulated valor_unitario per costura number.
  */
-async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
+async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null, totalCosturasConfig = null) {
   if (!otcod || !ubicod) return {};
   const pool = await db.connect();
   const req = pool.request();
@@ -149,6 +149,28 @@ async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
     }
   } catch (err) {
     console.warn('Error obteniendo maxCosturaTotal en obtenerAvanceCosturasLotes:', err.message);
+  }
+
+  // Si no se proporcionó totalCosturasConfig, intentar consultarlo para saber el límite de costuras del producto/ubicación
+  let totalConfig = totalCosturasConfig;
+  if ((totalConfig === null || totalConfig === undefined) && !isUniversal) {
+    try {
+      const resEsolver = await dbEsolver.query(
+        `SELECT RTRIM(procod) AS procod FROM VIEW_PRD_TALLER_OT WHERE otcod = @otcod`,
+        { otcod: otcod.trim() }
+      ).catch(() => null);
+      if (resEsolver && resEsolver.recordset.length > 0) {
+        const procod = resEsolver.recordset[0].procod;
+        req.input('procodParam', db.sql.Char(50), String(procod).trim());
+        const resUbiProd = await req.query(`
+          SELECT cantidad FROM FTALLER.dbo.PAR_UBICACION_PRODUCTO 
+          WHERE procod = @procodParam AND ubicod = @ubicod
+        `);
+        if (resUbiProd.recordset.length > 0 && resUbiProd.recordset[0].cantidad !== null) {
+          totalConfig = parseInt(resUbiProd.recordset[0].cantidad, 10);
+        }
+      }
+    } catch (_) {}
   }
 
   const query = `
@@ -209,11 +231,28 @@ async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
       }
     });
 
+    // Detectar todas las costuras pendientes dentro de 1..totalConfig (ej. si 5..8 están hechas, pendientes = [1,2,3,4])
+    const costurasPendientes = [];
+    if (totalConfig && totalConfig > 0 && !isUniversal) {
+      for (let num = 1; num <= totalConfig; num++) {
+        const vuReg = costurasDetalle[num] || 0;
+        const isComplete = target !== null ? (vuReg >= (target - 0.01)) : (vuReg > 0);
+        if (!isComplete) {
+          costurasPendientes.push(num);
+        }
+      }
+    }
+
     let nextCostura;
     if (costuraIncompleta) {
       nextCostura = costuraIncompleta.costuraNum;
+    } else if (costurasPendientes.length > 0) {
+      // Sugerir la primera costura pendiente (ej. costura 1 si 5..8 ya se hicieron)
+      nextCostura = costurasPendientes[0];
     } else if (isUniversal && maxCosturaGlobal > 0) {
       nextCostura = maxCosturaGlobal + 1;
+    } else if (totalConfig && totalConfig > 0 && costurasCompletas >= totalConfig) {
+      nextCostura = totalConfig + 1;
     } else if (costuras.length > 0) {
       const maxC = Math.max(...costuras.map(c => c.costuraNum));
       nextCostura = maxC + 1;
@@ -225,6 +264,7 @@ async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
       costurasRegistradas: costurasCompletas,
       costuraIncompleta,
       nextCostura,
+      costurasPendientes,
       detalles: costurasDetalle,
       valueOf() { return this.costurasRegistradas; },
       toString() { return String(this.costurasRegistradas); }
@@ -234,11 +274,11 @@ async function obtenerAvanceCosturasLotes(otcod, ubicod, targetVu = null) {
   // Si es universal y hubo registros, asegurar que la metadata global esté disponible
   if (isUniversal && maxCosturaGlobal > 0) {
     const globalNext = maxCosturaGlobal + 1;
-    // Si algún lote no tenía registros o se consulta '__UNIVERSAL__'
     map['__UNIVERSAL__'] = map['__UNIVERSAL__'] || {
       costurasRegistradas: maxCosturaGlobal,
       costuraIncompleta: null,
       nextCostura: globalNext,
+      costurasPendientes: [],
       detalles: {},
       valueOf() { return this.costurasRegistradas; },
       toString() { return String(this.costurasRegistradas); }

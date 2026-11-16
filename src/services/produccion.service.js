@@ -112,14 +112,20 @@ async function obtenerLotesOt(otcod, ubicod) {
   let costurasMap = {};
   if (ubicod && String(ubicod).trim()) {
     let targetVu = null;
+    let totalCosturasConfig = null;
     if (otDetails && otDetails.procod) {
       const configMap = await obtenerConfigUbicacionProducto(otDetails.procod).catch(() => ({}));
       const ubiConfig = configMap[String(ubicod).trim()];
-      if (ubiConfig && ubiConfig.valorUnitario !== null && ubiConfig.valorUnitario !== undefined) {
-        targetVu = Number(ubiConfig.valorUnitario);
+      if (ubiConfig) {
+        if (ubiConfig.valorUnitario !== null && ubiConfig.valorUnitario !== undefined) {
+          targetVu = Number(ubiConfig.valorUnitario);
+        }
+        if (ubiConfig.cantidad !== null && ubiConfig.cantidad !== undefined) {
+          totalCosturasConfig = parseInt(ubiConfig.cantidad, 10);
+        }
       }
     }
-    costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod, targetVu).catch(() => ({}));
+    costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod, targetVu, totalCosturasConfig).catch(() => ({}));
   }
 
   // 7. Retornar TODOS los lotes de la OT (sin excluir los ya registrados), cada uno con su posición y costuras previas
@@ -136,7 +142,7 @@ async function obtenerLotesOt(otcod, ubicod) {
     }
     const info = costurasMap[lot] 
       || (costurasMap['__UNIVERSAL__'] ? costurasMap['__UNIVERSAL__'] : null) 
-      || { costurasRegistradas: 0, costuraIncompleta: null, nextCostura: 1 };
+      || { costurasRegistradas: 0, costuraIncompleta: null, nextCostura: 1, costurasPendientes: [], detalles: {} };
     const costurasReg = typeof info === 'object' && info.costurasRegistradas !== undefined ? info.costurasRegistradas : (parseInt(info, 10) || 0);
 
     return {
@@ -146,7 +152,9 @@ async function obtenerLotesOt(otcod, ubicod) {
       avance: `${lotNumber}/${totalLotes}`,
       costurasRegistradas: costurasReg,
       costuraIncompleta: info.costuraIncompleta || null,
-      nextCostura: info.nextCostura || (costurasReg + 1)
+      nextCostura: info.nextCostura || (costurasReg + 1),
+      costurasPendientes: Array.isArray(info.costurasPendientes) ? info.costurasPendientes : [],
+      detalles: info.detalles || {}
     };
   });
 }
@@ -274,7 +282,7 @@ async function registrarProduccion(data, userContext) {
           let lotInfo = null;
           const targetVu = (ubiConfig && ubiConfig.valorUnitario !== null && ubiConfig.valorUnitario !== undefined) ? Number(ubiConfig.valorUnitario) : null;
           if (finalLotcod) {
-            const costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod, targetVu).catch(() => ({}));
+            const costurasMap = await produccionDal.obtenerAvanceCosturasLotes(otcod, ubicod, targetVu, totalCosturasConfig).catch(() => ({}));
             lotInfo = costurasMap[finalLotcod] || null;
             prevCosturas = lotInfo ? (lotInfo.costurasRegistradas || 0) : 0;
           }

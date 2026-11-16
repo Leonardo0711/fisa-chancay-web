@@ -332,10 +332,41 @@
     return null;
   }
 
+  function getSelectedLotCosturasPendientes() {
+    const lotVal = selectLote ? String(selectLote.value || '').trim() : '';
+    if (lotVal && Array.isArray(currentLotesData)) {
+      const match = currentLotesData.find(l => String(l.lotcod || '').trim() === lotVal);
+      if (match && Array.isArray(match.costurasPendientes)) {
+        return match.costurasPendientes;
+      }
+    }
+    if (selectLote && lotVal) {
+      const opt = selectLote.querySelector(`option[value="${lotVal}"]`);
+      if (opt && opt.dataset && opt.dataset.costurasPendientes) {
+        try { return JSON.parse(opt.dataset.costurasPendientes); } catch (_) {}
+      }
+    }
+    if (selectLote && selectLote.selectedIndex >= 0) {
+      const opt = selectLote.options[selectLote.selectedIndex];
+      if (opt && opt.dataset && opt.dataset.costurasPendientes) {
+        try { return JSON.parse(opt.dataset.costurasPendientes); } catch (_) {}
+      }
+    }
+    return [];
+  }
+
   function getSelectedLotNextCostura() {
     const lotVal = selectLote ? String(selectLote.value || '').trim() : '';
     const config = getCurrentLocationConfig();
     const isUniversal = config && (config.ubiuni === true || config.ubiuni === 1 || String(config.ubiuni) === 'true');
+
+    // 0. Si no es universal y tiene costuras pendientes identificadas, sugerir la primera pendiente
+    if (!isUniversal) {
+      const pending = getSelectedLotCosturasPendientes();
+      if (pending && pending.length > 0) {
+        return pending[0];
+      }
+    }
 
     // 1. Si hay un lote seleccionado en el dropdown, buscar su nextCostura
     if (lotVal && Array.isArray(currentLotesData)) {
@@ -406,6 +437,8 @@
           opt.dataset.prevCosturas = String(l.costurasRegistradas || 0);
           opt.dataset.incompleteCostura = l.costuraIncompleta ? JSON.stringify(l.costuraIncompleta) : '';
           opt.dataset.nextCostura = String(l.nextCostura || 1);
+          opt.dataset.costurasPendientes = Array.isArray(l.costurasPendientes) ? JSON.stringify(l.costurasPendientes) : '[]';
+          opt.dataset.detalles = l.detalles ? JSON.stringify(l.detalles) : '{}';
           selectLote.appendChild(opt);
         });
       } else {
@@ -1003,6 +1036,7 @@
     // --- MODO DESTAJO ---
     const prevCosturas = getSelectedLotPrevCosturas();
     const inc = getSelectedLotIncompleteCostura();
+    const pendingCosturas = getSelectedLotCosturasPendientes();
     const nextCosturaVal = getSelectedLotNextCostura();
     const startCostura = inc ? inc.costuraNum : nextCosturaVal;
     const cantCosturas = parseInt(inputCantidadIngresar ? inputCantidadIngresar.value : 0, 10) || 0;
@@ -1010,15 +1044,27 @@
       ? parseInt(config.cantidad, 10) : 0;
     const limitCostura = totalConfig > 0 ? totalConfig : 9999;
 
-    if (totalConfig > 0 && startCostura > limitCostura && !inc) {
+    if (totalConfig > 0 && prevCosturas >= totalConfig && !inc) {
       showAlert(`NO SE PUEDE ASIGNAR: Este lote ya completó el límite de ${totalConfig} costura(s) configurada(s).`, 'error');
       closeOperarioModal();
       return;
     }
 
-    const maxCostura = cantCosturas > 0 
-      ? Math.min(startCostura + cantCosturas - 1, limitCostura) 
-      : Math.min(startCostura + modalSelectedCodes.length - 1, limitCostura);
+    // Determinar la secuencia de costuras objetivo a asignar
+    let targetCosturaList = [];
+    if (pendingCosturas && pendingCosturas.length > 0) {
+      targetCosturaList = [...pendingCosturas];
+      if (inc && !targetCosturaList.includes(inc.costuraNum)) {
+        targetCosturaList.unshift(inc.costuraNum);
+      }
+    } else {
+      const maxCostura = cantCosturas > 0 
+        ? Math.min(startCostura + cantCosturas - 1, limitCostura) 
+        : Math.min(startCostura + modalSelectedCodes.length - 1, limitCostura);
+      for (let n = startCostura; n <= maxCostura; n++) {
+        targetCosturaList.push(n);
+      }
+    }
 
     const newSelected = new Map();
 
@@ -1026,10 +1072,11 @@
       const opObj = operariosList.find(o => o.usucod === code);
       if (!opObj) return;
 
-      // Asignación secuencial a partir de startCostura (#1 -> startCostura, #2 -> startCostura + 1, etc.)
-      let assignedCostura = startCostura + index;
-      if (cantCosturas > 0 && assignedCostura > maxCostura) {
-        assignedCostura = maxCostura;
+      let assignedCostura;
+      if (targetCosturaList.length > 0) {
+        assignedCostura = index < targetCosturaList.length ? targetCosturaList[index] : targetCosturaList[targetCosturaList.length - 1];
+      } else {
+        assignedCostura = startCostura + index;
       }
       if (assignedCostura > limitCostura) {
         assignedCostura = limitCostura;
@@ -1234,23 +1281,45 @@
       ? parseInt(config.cantidad, 10) : 0;
     const limitCostura = totalConfig > 0 ? totalConfig : 9999;
 
-    // Rango de costuras para esta tanda: desde startCostura hasta startCostura + cantCosturas - 1
-    let minCostura = startCostura;
-    let maxCostura = cantCosturas > 0 ? Math.min(startCostura + cantCosturas - 1, limitCostura) : Math.min(startCostura, limitCostura);
-    if (totalConfig > 0 && minCostura > limitCostura) {
-      minCostura = limitCostura;
-    }
+    // Determinar qué números de costura renderizar en la tabla y qué opciones mostrar en el select
+    let costuraNumbersToRender = [];
+    let availableCosturaNumbers = [];
 
-    const costuraCounts = {};
-    selectedOperarios.forEach(op => {
-      if (totalConfig > 0 && op.costuraNum > limitCostura) {
-        op.costuraNum = limitCostura;
+    if (pendingCosturas && pendingCosturas.length > 0) {
+      const renderSet = new Set();
+      const numToTake = cantCosturas > 0 ? cantCosturas : pendingCosturas.length;
+      pendingCosturas.slice(0, numToTake).forEach(n => renderSet.add(n));
+      selectedOperarios.forEach(op => {
+        if (op.costuraNum) renderSet.add(op.costuraNum);
+      });
+      costuraNumbersToRender = Array.from(renderSet).sort((a, b) => a - b);
+
+      const availableSet = new Set(pendingCosturas);
+      selectedOperarios.forEach(op => {
+        if (op.costuraNum) availableSet.add(op.costuraNum);
+      });
+      availableCosturaNumbers = Array.from(availableSet).sort((a, b) => a - b);
+    } else {
+      let minCostura = startCostura;
+      let maxCostura = cantCosturas > 0 ? Math.min(startCostura + cantCosturas - 1, limitCostura) : Math.min(startCostura, limitCostura);
+      if (totalConfig > 0 && minCostura > limitCostura) {
+        minCostura = limitCostura;
       }
-      const c = op.costuraNum || startCostura;
-      costuraCounts[c] = (costuraCounts[c] || 0) + 1;
-      if (c < minCostura) minCostura = c;
-      if (c > maxCostura) maxCostura = c;
-    });
+
+      selectedOperarios.forEach(op => {
+        if (totalConfig > 0 && op.costuraNum > limitCostura) {
+          op.costuraNum = limitCostura;
+        }
+        const c = op.costuraNum || startCostura;
+        if (c < minCostura) minCostura = c;
+        if (c > maxCostura) maxCostura = c;
+      });
+
+      for (let c = minCostura; c <= maxCostura; c++) {
+        costuraNumbersToRender.push(c);
+      }
+      availableCosturaNumbers = [...costuraNumbersToRender];
+    }
 
     // Ordenar operarios por número de costura
     const sortedWorkers = Array.from(selectedOperarios.values()).sort((a, b) => {
@@ -1260,8 +1329,8 @@
       return 0;
     });
 
-    // Renderizar por cada número de costura desde minCostura hasta maxCostura
-    for (let c = minCostura; c <= maxCostura; c++) {
+    // Renderizar por cada número de costura determinado
+    for (const c of costuraNumbersToRender) {
       const workersInC = sortedWorkers.filter(w => (w.costuraNum || startCostura) === c);
 
       if (workersInC.length === 0) {
@@ -1316,11 +1385,11 @@
         const isShared = workersInC.length > 1;
         const formattedVu = op.vu > 0 ? (Number.isInteger(op.vu) ? op.vu : parseFloat(op.vu.toFixed(2))) : '';
 
-        // Opciones del selector de costura (solo números minCostura..maxCostura)
+        // Opciones del selector de costura
         let optionsHtml = '';
-        for (let num = minCostura; num <= maxCostura; num++) {
+        availableCosturaNumbers.forEach(num => {
           optionsHtml += `<option value="${num}" ${num === c ? 'selected' : ''}>${num}</option>`;
-        }
+        });
 
         tr.innerHTML = `
           <td style="vertical-align: middle; padding: 6px 8px; white-space: nowrap;">
@@ -1761,10 +1830,15 @@
       const lastCovered = sortedCovered[sortedCovered.length - 1];
 
       // Validar que no hayan costuras intermedias vacías entre la primera y la última cubierta
+      const pendingList = getSelectedLotCosturasPendientes();
       const missingIntermediate = [];
       for (let c = firstCovered; c <= lastCovered; c++) {
         if (!coveredCosturas.has(c)) {
-          missingIntermediate.push(c);
+          // Si esta costura ya está completada previamente en la BD, no considerarla faltante
+          const isAlreadyCompleted = pendingList.length > 0 ? !pendingList.includes(c) : false;
+          if (!isAlreadyCompleted) {
+            missingIntermediate.push(c);
+          }
         }
       }
 
